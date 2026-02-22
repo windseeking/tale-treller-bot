@@ -1,17 +1,20 @@
 import { env } from "./config/env.js";
 import { normalizeError, toLogPayload } from "./errors/error-handler.js";
+import { TrelloClient } from "./trello/trello-client.js";
+import { LlmClient } from "./llm/llm-client.js";
 import { logger } from "./logger/logger.js";
 import { createTelegramBot } from "./bot/telegram-bot.js";
-import { TrelloClient } from "./trello/trello-client.js";
 
 let shuttingDown = false;
 let stopBot: (() => Promise<void>) | null = null;
 
 async function bootstrap(): Promise<void> {
   const trelloClient = new TrelloClient();
+  const llmClient = new LlmClient();
   const bot = createTelegramBot({
     telegramToken: env.TELEGRAM_BOT_TOKEN,
-    trelloClient
+    trelloClient,
+    llmClient
   });
 
   logger.info(

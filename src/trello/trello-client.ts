@@ -7,7 +7,7 @@ import type { CreateTrelloCardInput, TrelloBoard, TrelloCard, TrelloList } from 
 const boardSchema = z.object({
   id: z.string(),
   name: z.string(),
-  url: z.string().url(),
+  url: z.url(),
   closed: z.boolean().default(false)
 });
 
@@ -23,8 +23,8 @@ const cardSchema = z.object({
   id: z.string(),
   name: z.string(),
   desc: z.string().default(""),
-  url: z.string().url(),
-  shortUrl: z.string().url(),
+  url: z.url(),
+  shortUrl: z.url(),
   idBoard: z.string(),
   idList: z.string()
 });
@@ -37,6 +37,14 @@ const trelloErrorSchema = z.object({
 type RequestOptions = {
   method?: "GET" | "POST";
   query?: Record<string, string | undefined>;
+};
+
+type RequestDebug = {
+  method: "GET" | "POST";
+  url: string;
+  urlLength: number;
+  bodyLength: number;
+  bodyPreview?: string;
 };
 
 export class TrelloClient {
@@ -92,9 +100,23 @@ export class TrelloClient {
   }
 
   private async request(params: { path: string; options?: RequestOptions }): Promise<unknown> {
-    const url = this.buildUrl(params.path, params.options?.query);
+    const method = params.options?.method ?? "GET";
+    const requestQuery = params.options?.query ?? {};
+    const url = this.buildUrl(params.path, method === "GET" ? requestQuery : undefined);
+    const body = method === "POST" ? this.toFormBody(requestQuery) : undefined;
+
+    const debugRequest: RequestDebug = {
+      method,
+      url: this.sanitizeUrl(url),
+      urlLength: url.length,
+      bodyLength: body?.length ?? 0,
+      bodyPreview: body ? this.truncate(body, 1800) : undefined
+    };
+
     const response = await fetch(url, {
-      method: params.options?.method ?? "GET"
+      method,
+      headers: body ? { "Content-Type": "application/x-www-form-urlencoded" } : undefined,
+      body
     });
 
     const bodyText = await response.text();
@@ -104,7 +126,8 @@ export class TrelloClient {
       throw this.toApiError({
         path: params.path,
         status: response.status,
-        payload: parsedBody ?? bodyText
+        payload: parsedBody ?? bodyText,
+        request: debugRequest
       });
     }
 
@@ -140,7 +163,12 @@ export class TrelloClient {
     }
   }
 
-  private toApiError(params: { path: string; status: number; payload: unknown }): AppError {
+  private toApiError(params: {
+    path: string;
+    status: number;
+    payload: unknown;
+    request: RequestDebug;
+  }): AppError {
     const trelloError =
       typeof params.payload === "object" && params.payload !== null
         ? trelloErrorSchema.safeParse(params.payload)
@@ -158,8 +186,53 @@ export class TrelloClient {
       details: {
         path: params.path,
         status: params.status,
-        response: params.payload
+        response: params.payload,
+        request: params.request
       }
     });
+  }
+
+  private toFormBody(data: Record<string, string | undefined>): string {
+    const form = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        form.set(key, value);
+      }
+    }
+
+    return form.toString();
+  }
+
+  private sanitizeUrl(rawUrl: string): string {
+    const url = new URL(rawUrl);
+
+    const key = url.searchParams.get("key");
+    if (key) {
+      url.searchParams.set("key", this.maskSecret(key));
+    }
+
+    const token = url.searchParams.get("token");
+    if (token) {
+      url.searchParams.set("token", this.maskSecret(token));
+    }
+
+    return url.toString();
+  }
+
+  private maskSecret(value: string): string {
+    if (value.length <= 8) {
+      return "***";
+    }
+
+    return `${value.slice(0, 4)}***${value.slice(-4)}`;
+  }
+
+  private truncate(value: string, maxLength: number): string {
+    if (value.length <= maxLength) {
+      return value;
+    }
+
+    return `${value.slice(0, maxLength)}... [truncated, original length=${value.length}]`;
   }
 }

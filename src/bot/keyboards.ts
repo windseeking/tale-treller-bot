@@ -27,3 +27,9 @@ export function cancelKeyboard() {
     inline_keyboard: [CANCEL_BUTTON]
   };
 }
+
+export function cardCreatedKeyboard(cardUrl: string) {
+  return {
+    inline_keyboard: [[{ text: "Открыть карточку", url: cardUrl }]]
+  };
+}

@@ -2,38 +2,41 @@ import { Telegraf, type Context } from "telegraf";
 
 import { AppError } from "../errors/app-error.js";
 import { normalizeError } from "../errors/error-handler.js";
+import { LlmClient } from "../llm/llm-client.js";
 import { logger } from "../logger/logger.js";
 import { TrelloClient } from "../trello/trello-client.js";
 import type { TrelloBoard, TrelloList } from "../trello/types.js";
-import { buildCardInput, validateTaskTextLength } from "./card-content.js";
-import { boardsKeyboard, cancelKeyboard, listsKeyboard } from "./keyboards.js";
+import { validateTaskTextLength } from "./card-content.js";
+import { boardsKeyboard, cancelKeyboard, cardCreatedKeyboard, listsKeyboard } from "./keyboards.js";
 import { SessionStore } from "./session-store.js";
 
 const BOT_TEXT = {
   welcome:
-    "Привет. Я готов принимать сообщения для постановки задач в Trello.\n\nПришли одно или несколько текстовых сообщений.",
+    "Привет! Я готов помочь с постановкой задач в Trello ✨\n\nПришли одно или несколько текстовых сообщений.",
   tooShort: (length: number) =>
-    `Текст задачи слишком короткий: ${length} символов. Нужно минимум 15. Пришли дополнительные сообщения.`,
-  pickBoard: "Выбери доску, на которой нужно создать карточку.",
-  noBoards: "Не удалось найти доступные доски для этого пользователя Trello.",
-  pickList: (boardName: string) => `Выбрана доска: ${boardName}\nТеперь выбери колонку (список).`,
-  noLists: "В этой доске нет доступных колонок. Выбери другую доску.",
-  canceled: "Постановка задачи отменена. Можешь прислать новый текст задачи.",
-  boardChanged: "Выбор доски сброшен. Выбери доску заново.",
-  waitBoard: "Сначала нужно выбрать доску.",
-  waitList: "Сначала нужно выбрать колонку.",
-  cardCreated: (cardName: string, boardName: string) =>
-    `Карточка "${cardName}" создана на доске "${boardName}".`,
-  genericError: "Произошла ошибка при обработке. Попробуй еще раз.",
-  unsupportedMessage: "Сейчас поддерживаются только текстовые сообщения."
+    `Пока маловато текста: ${length} символов. Нужно минимум 15. Пришли, пожалуйста, еще немного деталей.`,
+  pickBoard: "Отлично, теперь выбери доску, где создать карточку:",
+  noBoards: "Не нашла доступные доски для этого пользователя Trello 🕵",
+  pickList: (boardName: string) => `Выбрали доску: *${boardName}* ✅\nТеперь выбери колонку (список):`,
+  noLists: "В этой доске пока нет доступных колонок 😕 Давай выберем другую доску.",
+  canceled: "Ок, отменил постановку задачи ✋ Можешь прислать новый текст.",
+  boardChanged: "Хорошо, давай выберем другую доску 🔄",
+  waitBoard: "Сначала выбери доску из кнопок ниже 👇",
+  waitList: "Сначала выбери колонку из кнопок ниже 👇",
+  cardCreated: (cardName: string, boardName: string, cardShortUrl: string) =>
+    `Готово! Карточка *${cardName}* создана на доске *${boardName}* 🎉\nСсылка: ${cardShortUrl}`,
+  cardInProgress: "Принято! Собираю карточку и отправляю в Trello ⏳",
+  genericError: "Ой, что-то пошло не так 😔 Попробуй еще раз.",
+  unsupportedMessage: "Пока поддерживаются только текстовые сообщения 💬"
 };
 
 type Dependencies = {
   telegramToken: string;
   trelloClient: TrelloClient;
+  llmClient: LlmClient;
 };
 
-export function createTelegramBot({ telegramToken, trelloClient }: Dependencies): Telegraf {
+export function createTelegramBot({ telegramToken, trelloClient, llmClient }: Dependencies): Telegraf {
   const bot = new Telegraf(telegramToken);
   const sessions = new SessionStore();
 
@@ -43,7 +46,7 @@ export function createTelegramBot({ telegramToken, trelloClient }: Dependencies)
       return;
     }
     sessions.resetTask(chatId);
-    await ctx.reply(BOT_TEXT.welcome);
+    await replyMarkdown(ctx, BOT_TEXT.welcome);
   });
 
   bot.command("cancel", async (ctx: Context) => {
@@ -52,7 +55,7 @@ export function createTelegramBot({ telegramToken, trelloClient }: Dependencies)
       return;
     }
     sessions.resetTask(chatId);
-    await ctx.reply(BOT_TEXT.canceled);
+    await replyMarkdown(ctx, BOT_TEXT.canceled);
   });
 
   bot.on("text", async (ctx: Context) => {
@@ -68,13 +71,13 @@ export function createTelegramBot({ telegramToken, trelloClient }: Dependencies)
       const session = sessions.get(chatId);
 
       if (session.stage === "selecting_board") {
-        await ctx.reply(BOT_TEXT.waitBoard);
+        await replyMarkdown(ctx, BOT_TEXT.waitBoard);
         await sendBoards(ctx, trelloClient, session);
         return;
       }
 
       if (session.stage === "selecting_list") {
-        await ctx.reply(BOT_TEXT.waitList);
+        await replyMarkdown(ctx, BOT_TEXT.waitList);
         return;
       }
 
@@ -87,7 +90,7 @@ export function createTelegramBot({ telegramToken, trelloClient }: Dependencies)
       const validation = validateTaskTextLength(session.messages);
 
       if (!validation.ok) {
-        await ctx.reply(BOT_TEXT.tooShort(validation.currentLength));
+        await replyMarkdown(ctx, BOT_TEXT.tooShort(validation.currentLength));
         return;
       }
 
@@ -112,7 +115,7 @@ export function createTelegramBot({ telegramToken, trelloClient }: Dependencies)
       await next();
       return;
     }
-    await ctx.reply(BOT_TEXT.unsupportedMessage);
+    await replyMarkdown(ctx, BOT_TEXT.unsupportedMessage);
   });
 
   bot.on("callback_query", async (ctx: Context) => {
@@ -130,10 +133,11 @@ export function createTelegramBot({ telegramToken, trelloClient }: Dependencies)
     const session = sessions.get(chatId);
 
     try {
+      await safeAnswerCbQuery(ctx);
+
       if (data === "action:cancel") {
         sessions.resetTask(chatId);
-        await ctx.answerCbQuery();
-        await ctx.reply(BOT_TEXT.canceled);
+        await replyMarkdown(ctx, BOT_TEXT.canceled);
         return;
       }
 
@@ -142,8 +146,7 @@ export function createTelegramBot({ telegramToken, trelloClient }: Dependencies)
         session.selectedBoardId = undefined;
         session.selectedBoardName = undefined;
         session.lists = [];
-        await ctx.answerCbQuery();
-        await ctx.reply(BOT_TEXT.boardChanged);
+        await replyMarkdown(ctx, BOT_TEXT.boardChanged);
         await sendBoards(ctx, trelloClient, session);
         return;
       }
@@ -156,7 +159,7 @@ export function createTelegramBot({ telegramToken, trelloClient }: Dependencies)
 
       if (data.startsWith("list:")) {
         const listId = data.replace("list:", "");
-        await onListSelected({ listId, session, ctx, trelloClient });
+        await onListSelected({ listId, session, ctx, trelloClient, llmClient });
         return;
       }
     } catch (error) {
@@ -193,8 +196,7 @@ async function onBoardSelected(params: {
 
   const selectedBoard = session.boards.find((board) => board.id === boardId);
   if (!selectedBoard) {
-    await ctx.answerCbQuery("Доска не найдена");
-    await ctx.reply(BOT_TEXT.pickBoard, { reply_markup: boardsKeyboard(session.boards) });
+    await replyMarkdown(ctx, BOT_TEXT.pickBoard, { reply_markup: boardsKeyboard(session.boards) });
     return;
   }
 
@@ -204,8 +206,7 @@ async function onBoardSelected(params: {
   const lists = await trelloClient.getBoardLists(selectedBoard.id);
 
   if (lists.length === 0) {
-    await ctx.answerCbQuery();
-    await ctx.reply(BOT_TEXT.noLists);
+    await replyMarkdown(ctx, BOT_TEXT.noLists);
     await sendBoards(ctx, trelloClient, session);
     return;
   }
@@ -213,8 +214,9 @@ async function onBoardSelected(params: {
   session.stage = "selecting_list";
   session.lists = lists;
 
-  await ctx.answerCbQuery();
-  await ctx.reply(BOT_TEXT.pickList(selectedBoard.name), { reply_markup: listsKeyboard(lists) });
+  await replyMarkdown(ctx, BOT_TEXT.pickList(escapeMarkdown(selectedBoard.name)), {
+    reply_markup: listsKeyboard(lists)
+  });
 }
 
 async function onListSelected(params: {
@@ -229,25 +231,34 @@ async function onListSelected(params: {
   };
   ctx: Context;
   trelloClient: TrelloClient;
+  llmClient: LlmClient;
 }): Promise<void> {
-  const { listId, session, ctx, trelloClient } = params;
+  const { listId, session, ctx, trelloClient, llmClient } = params;
 
   const selectedList = session.lists.find((list) => list.id === listId);
   if (!selectedList) {
-    await ctx.answerCbQuery("Колонка не найдена");
-    await ctx.reply(BOT_TEXT.waitList, { reply_markup: listsKeyboard(session.lists) });
+    await replyMarkdown(ctx, BOT_TEXT.waitList, { reply_markup: listsKeyboard(session.lists) });
     return;
   }
 
-  const cardInput = buildCardInput({
+  await replyMarkdown(ctx, BOT_TEXT.cardInProgress);
+
+  const cardInput = await llmClient.generateCardInput({
     messages: session.messages,
     idList: selectedList.id
   });
 
   const card = await trelloClient.createCard(cardInput);
 
-  await ctx.answerCbQuery();
-  await ctx.reply(BOT_TEXT.cardCreated(card.name, session.selectedBoardName ?? "неизвестная доска"));
+  await replyMarkdown(
+    ctx,
+    BOT_TEXT.cardCreated(
+      escapeMarkdown(card.name),
+      escapeMarkdown(session.selectedBoardName ?? "неизвестная доска"),
+      card.shortUrl
+    ),
+    { reply_markup: cardCreatedKeyboard(card.shortUrl) }
+  );
   session.stage = "collecting";
   session.messages = [];
   session.boards = [];
@@ -269,11 +280,11 @@ async function sendBoards(
   session.stage = "selecting_board";
 
   if (boards.length === 0) {
-    await ctx.reply(BOT_TEXT.noBoards, { reply_markup: cancelKeyboard() });
+    await replyMarkdown(ctx, BOT_TEXT.noBoards, { reply_markup: cancelKeyboard() });
     return;
   }
 
-  await ctx.reply(BOT_TEXT.pickBoard, { reply_markup: boardsKeyboard(boards) });
+  await replyMarkdown(ctx, BOT_TEXT.pickBoard, { reply_markup: boardsKeyboard(boards) });
 }
 
 function formatBotError(error: AppError): string {
@@ -295,4 +306,36 @@ function escapeHtml(value: string): string {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function escapeMarkdown(value: string): string {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll("_", "\\_")
+    .replaceAll("*", "\\*")
+    .replaceAll("`", "\\`")
+    .replaceAll("[", "\\[");
+}
+
+async function replyMarkdown(
+  ctx: Context,
+  text: string,
+  extra?: Parameters<Context["reply"]>[1]
+): Promise<void> {
+  await ctx.reply(text, { parse_mode: "Markdown", ...extra });
+}
+
+async function safeAnswerCbQuery(ctx: Context): Promise<void> {
+  try {
+    await ctx.answerCbQuery();
+  } catch (error) {
+    const normalized = normalizeError(error);
+    const message = normalized.message.toLowerCase();
+    const isExpiredQuery =
+      message.includes("query is too old") || message.includes("query id is invalid");
+
+    if (!isExpiredQuery) {
+      throw error;
+    }
+  }
 }

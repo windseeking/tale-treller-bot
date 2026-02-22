@@ -3,17 +3,31 @@ import { z } from "zod";
 
 loadEnv();
 
+function isValidTimeZone(value: string): boolean {
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  APP_TIMEZONE: z
+    .string()
+    .min(1, "APP_TIMEZONE is required")
+    .refine(isValidTimeZone, "APP_TIMEZONE must be a valid IANA timezone"),
   TELEGRAM_BOT_TOKEN: z.string().min(1, "TELEGRAM_BOT_TOKEN is required"),
   TRELLO_API_KEY: z.string().min(1, "TRELLO_API_KEY is required"),
   TRELLO_TOKEN: z.string().min(1, "TRELLO_TOKEN is required"),
   TRELLO_MEMBER_ID: z.string().min(1, "TRELLO_MEMBER_ID is required"),
-  LLM_API_KEY: z.string().optional(),
-  LLM_MODEL: z.string().optional()
+  LLM_API_KEY: z.string().min(1, "LLM_API_KEY is required"),
+  LLM_MODEL: z.string().min(1, "LLM_MODEL is required"),
+  LLM_BASE_URL: z.string().url().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);
