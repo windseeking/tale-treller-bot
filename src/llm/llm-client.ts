@@ -47,7 +47,8 @@ export class LlmClient {
       },
       body: JSON.stringify({
         model: env.LLM_MODEL,
-        temperature: 0.2,
+        // temperature: 0.2,
+        // temperature: 0.2, gpt-5-mini не поддерживает какие-либо значения, кроме 1
         response_format: { type: "json_object" },
         messages: [
           {

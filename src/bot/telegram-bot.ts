@@ -12,15 +12,18 @@ import {
   cancelKeyboard,
   cardCreatedKeyboard,
   listsKeyboard,
+  mainReplyKeyboard,
   reuseSelectionKeyboard
 } from "./keyboards.js";
 import { SessionStore } from "./session-store.js";
 
 const BOT_TEXT = {
   welcome:
-    "Привет! Я готов помочь с постановкой задач в Trello ✨\n\nПришли одно или несколько текстовых сообщений.",
+    "Привет! Я готов помочь с постановкой задач в Trello ✨\n\nПришли одно или несколько текстовых сообщений, а когда будешь готова — нажми кнопку *Создать задачу*.",
   tooShort: (length: number) =>
-    `Пока маловато текста: ${length} символов. Нужно минимум 15. Пришли, пожалуйста, еще немного деталей.`,
+    `Пока маловато текста: ${length} символов. Нужно минимум 15. Добавь деталей и снова нажми *Создать задачу*.`,
+  draftEmpty:
+    "Пока не вижу текста задачи. Пришли сообщения с деталями, затем нажми *Создать задачу*.",
   pickBoard: "Отлично, теперь выбери доску, где создать карточку:",
   noBoards: "Не нашла доступные доски для этого пользователя Trello 🕵",
   reuseSelection: (boardName: string, listName: string) =>
@@ -29,7 +32,8 @@ const BOT_TEXT = {
   boardSelected: (boardName: string) => `Доска: *${boardName}*`,
   listSelected: (listName: string) => `Колонка: *${listName}*`,
   noLists: "В этой доске пока нет доступных колонок 😕 Давай выберем другую доску.",
-  canceled: "Ок, отменил постановку задачи ✋ Можешь прислать новый текст.",
+  canceled:
+    "Ок, задачу отменила ✋ Текущий черновик сброшен, можешь присылать новые сообщения для следующей задачи.",
   boardChanged: "Хорошо, давай выберем другую доску 🔄",
   waitLastSelection: "Выбери один из вариантов ниже 👇",
   waitBoard: "Сначала выбери доску из кнопок ниже 👇",
@@ -37,6 +41,7 @@ const BOT_TEXT = {
   cardCreated: (cardName: string, cardShortUrl: string) =>
     `Готово! 🎉 Карточка *${cardName}* создана.\nСсылка: ${cardShortUrl}`,
   cardInProgress: "Принято! Собираю карточку и отправляю в Trello ⏳",
+  readyForNextDraft: "Готов к новой задаче ✍️ Пришли сообщения и нажми *Создать задачу*.",
   genericError: "Ой, что-то пошло не так 😔 Попробуй еще раз.",
   unsupportedMessage: "Пока поддерживаются только текстовые сообщения 💬"
 };
@@ -59,7 +64,7 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
       return;
     }
     sessions.resetTask(chatId);
-    await replyMarkdown(ctx, BOT_TEXT.welcome);
+    await replyMarkdown(ctx, BOT_TEXT.welcome, { reply_markup: mainReplyKeyboard() });
   });
 
   bot.command("cancel", async (ctx: Context) => {
@@ -68,7 +73,7 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
       return;
     }
     sessions.resetTask(chatId);
-    await replyMarkdown(ctx, BOT_TEXT.canceled);
+    await replyMarkdown(ctx, BOT_TEXT.canceled, { reply_markup: mainReplyKeyboard() });
   });
 
   bot.on("text", async (ctx: Context) => {
@@ -85,7 +90,6 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
 
       if (session.stage === "selecting_board") {
         await replyMarkdown(ctx, BOT_TEXT.waitBoard);
-        await sendBoards(ctx, trelloClient, session);
         return;
       }
 
@@ -104,28 +108,48 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
         return;
       }
 
+      if (text === "Отмена") {
+        await tryDeleteIncomingMessage(ctx);
+        sessions.resetTask(chatId);
+        await replyMarkdown(ctx, BOT_TEXT.canceled, { reply_markup: mainReplyKeyboard() });
+        return;
+      }
+
+      if (text === "Создать задачу") {
+        await tryDeleteIncomingMessage(ctx);
+        await hideMainReplyKeyboard(ctx);
+        const validation = validateTaskTextLength(session.messages);
+
+        if (session.messages.length === 0) {
+          await replyMarkdown(ctx, BOT_TEXT.draftEmpty, { reply_markup: mainReplyKeyboard() });
+          return;
+        }
+
+        if (!validation.ok) {
+          await replyMarkdown(ctx, BOT_TEXT.tooShort(validation.currentLength), {
+            reply_markup: mainReplyKeyboard()
+          });
+          return;
+        }
+
+        if (hasLastSelection(session)) {
+          session.stage = "confirming_last_selection";
+          await replyMarkdown(
+            ctx,
+            BOT_TEXT.reuseSelection(
+              escapeMarkdown(session.lastBoardName ?? ""),
+              escapeMarkdown(session.lastListName ?? "")
+            ),
+            { reply_markup: reuseSelectionKeyboard() }
+          );
+          return;
+        }
+
+        await sendBoards(ctx, trelloClient, session);
+        return;
+      }
+
       session.messages.push(text);
-      const validation = validateTaskTextLength(session.messages);
-
-      if (!validation.ok) {
-        await replyMarkdown(ctx, BOT_TEXT.tooShort(validation.currentLength));
-        return;
-      }
-
-      if (hasLastSelection(session)) {
-        session.stage = "confirming_last_selection";
-        await replyMarkdown(
-          ctx,
-          BOT_TEXT.reuseSelection(
-            escapeMarkdown(session.lastBoardName ?? ""),
-            escapeMarkdown(session.lastListName ?? "")
-          ),
-          { reply_markup: reuseSelectionKeyboard() }
-        );
-        return;
-      }
-
-      await sendBoards(ctx, trelloClient, session);
     } catch (error) {
       const normalized = normalizeError(error);
       logger.error(
@@ -168,7 +192,7 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
 
       if (data === "action:cancel") {
         sessions.resetTask(chatId);
-        await replyMarkdown(ctx, BOT_TEXT.canceled);
+        await replyMarkdown(ctx, BOT_TEXT.canceled, { reply_markup: mainReplyKeyboard() });
         return;
       }
 
@@ -179,8 +203,7 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
         session.selectedListId = undefined;
         session.selectedListName = undefined;
         session.lists = [];
-        await replaceCallbackMessageText(ctx, BOT_TEXT.boardChanged);
-        await sendBoards(ctx, trelloClient, session);
+        await sendBoards(ctx, trelloClient, session, { inCallbackMessage: true, text: BOT_TEXT.boardChanged });
         return;
       }
 
@@ -334,23 +357,36 @@ async function createCardFromCurrentSelection(params: {
   session.selectedBoardName = undefined;
   session.selectedListId = undefined;
   session.selectedListName = undefined;
+  await replyMarkdown(ctx, BOT_TEXT.readyForNextDraft, { reply_markup: mainReplyKeyboard() });
 }
 
 async function sendBoards(
   ctx: Context,
   trelloClient: TrelloClient,
-  session: BotSession
+  session: BotSession,
+  options?: { inCallbackMessage?: boolean; text?: string }
 ): Promise<void> {
   const boards = await trelloClient.getMemberBoards();
   session.boards = boards;
   session.stage = "selecting_board";
+  const text = options?.text ?? BOT_TEXT.pickBoard;
 
   if (boards.length === 0) {
+    if (options?.inCallbackMessage) {
+      await replaceCallbackMessageText(ctx, BOT_TEXT.noBoards, { reply_markup: cancelKeyboard() });
+      return;
+    }
+
     await replyMarkdown(ctx, BOT_TEXT.noBoards, { reply_markup: cancelKeyboard() });
     return;
   }
 
-  await replyMarkdown(ctx, BOT_TEXT.pickBoard, { reply_markup: boardsKeyboard(boards) });
+  if (options?.inCallbackMessage) {
+    await replaceCallbackMessageText(ctx, text, { reply_markup: boardsKeyboard(boards) });
+    return;
+  }
+
+  await replyMarkdown(ctx, text, { reply_markup: boardsKeyboard(boards) });
 }
 
 function hasLastSelection(session: BotSession): boolean {
@@ -412,9 +448,15 @@ async function safeAnswerCbQuery(ctx: Context): Promise<void> {
   }
 }
 
-async function replaceCallbackMessageText(ctx: Context, text: string): Promise<void> {
+async function replaceCallbackMessageText(
+  ctx: Context,
+  text: string,
+  extra?: {
+    reply_markup?: ReturnType<typeof boardsKeyboard> | ReturnType<typeof cancelKeyboard>;
+  }
+): Promise<void> {
   try {
-    await ctx.editMessageText(text, { parse_mode: "Markdown" });
+    await ctx.editMessageText(text, { parse_mode: "Markdown", ...extra });
   } catch (error) {
     const normalized = normalizeError(error);
     const message = normalized.message.toLowerCase();
@@ -428,7 +470,7 @@ async function replaceCallbackMessageText(ctx: Context, text: string): Promise<v
       throw error;
     }
 
-    await replyMarkdown(ctx, text);
+    await replyMarkdown(ctx, text, extra);
   }
 }
 
@@ -464,5 +506,58 @@ async function replaceBotMessageText(
     }
 
     await replyMarkdown(ctx, text, extra);
+  }
+}
+
+async function tryDeleteIncomingMessage(ctx: Context): Promise<void> {
+  try {
+    await ctx.deleteMessage();
+  } catch (error) {
+    const normalized = normalizeError(error);
+    const message = normalized.message.toLowerCase();
+    const isIgnorableError =
+      message.includes("message to delete not found") ||
+      message.includes("message can't be deleted") ||
+      message.includes("message can't be deleted for everyone");
+
+    if (isIgnorableError) {
+      return;
+    }
+
+    logger.warn(
+      {
+        code: normalized.code,
+        message: normalized.message
+      },
+      "Could not delete incoming message"
+    );
+  }
+}
+
+async function hideMainReplyKeyboard(ctx: Context): Promise<void> {
+  try {
+    const chatId = ctx.chat?.id;
+    const markerMessage = await ctx.reply("\u2063", {
+      reply_markup: { remove_keyboard: true }
+    });
+
+    if (chatId === undefined) {
+      return;
+    }
+
+    try {
+      await ctx.telegram.deleteMessage(chatId, markerMessage.message_id);
+    } catch {
+      // Ignore cleanup errors: keyboard is already removed at this point.
+    }
+  } catch (error) {
+    const normalized = normalizeError(error);
+    logger.warn(
+      {
+        code: normalized.code,
+        message: normalized.message
+      },
+      "Could not hide main reply keyboard"
+    );
   }
 }

@@ -43,3 +43,11 @@ export function cardCreatedKeyboard(cardUrl: string) {
     inline_keyboard: [[{ text: "Открыть карточку", url: cardUrl }]]
   };
 }
+
+export function mainReplyKeyboard() {
+  return {
+    keyboard: [[{ text: "Создать задачу" }, { text: "Отмена" }]],
+    resize_keyboard: true,
+    one_time_keyboard: true
+  };
+}
