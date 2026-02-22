@@ -12,8 +12,8 @@ const envSchema = z.object({
   TRELLO_API_KEY: z.string().min(1, "TRELLO_API_KEY is required"),
   TRELLO_TOKEN: z.string().min(1, "TRELLO_TOKEN is required"),
   TRELLO_MEMBER_ID: z.string().min(1, "TRELLO_MEMBER_ID is required"),
-  LLM_API_KEY: z.string().min(1, "LLM_API_KEY is required"),
-  LLM_MODEL: z.string().min(1, "LLM_MODEL is required")
+  LLM_API_KEY: z.string().optional(),
+  LLM_MODEL: z.string().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,12 +1,18 @@
 import { env } from "./config/env.js";
 import { normalizeError, toLogPayload } from "./errors/error-handler.js";
 import { logger } from "./logger/logger.js";
+import { createTelegramBot } from "./bot/telegram-bot.js";
 import { TrelloClient } from "./trello/trello-client.js";
 
 let shuttingDown = false;
+let stopBot: (() => Promise<void>) | null = null;
 
 async function bootstrap(): Promise<void> {
   const trelloClient = new TrelloClient();
+  const bot = createTelegramBot({
+    telegramToken: env.TELEGRAM_BOT_TOKEN,
+    trelloClient
+  });
 
   logger.info(
     {
@@ -15,7 +21,17 @@ async function bootstrap(): Promise<void> {
     "Telegram Trello bot bootstrap initialized"
   );
 
-  logger.info("Infrastructure is ready. Trello API client initialized.");
+  bot.catch((error: unknown) => {
+    const normalized = normalizeError(error);
+    logger.error(toLogPayload(normalized, { scope: "telegram", action: "middleware" }));
+  });
+
+  await bot.launch();
+  stopBot = async () => {
+    bot.stop("shutdown");
+  };
+
+  logger.info("Telegram bot started.");
 }
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
@@ -25,6 +41,9 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   shuttingDown = true;
 
   logger.warn({ signal }, "Shutdown signal received");
+  if (stopBot) {
+    await stopBot();
+  }
   logger.info("Application stopped");
   process.exit(0);
 }
