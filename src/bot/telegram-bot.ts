@@ -17,14 +17,16 @@ const BOT_TEXT = {
     `Пока маловато текста: ${length} символов. Нужно минимум 15. Пришли, пожалуйста, еще немного деталей.`,
   pickBoard: "Отлично, теперь выбери доску, где создать карточку:",
   noBoards: "Не нашла доступные доски для этого пользователя Trello 🕵",
-  pickList: (boardName: string) => `Выбрали доску: *${boardName}* ✅\nТеперь выбери колонку (список):`,
+  pickList: "Теперь выбери список:",
+  boardSelected: (boardName: string) => `Доска: *${boardName}*`,
+  listSelected: (listName: string) => `Колонка: *${listName}*`,
   noLists: "В этой доске пока нет доступных колонок 😕 Давай выберем другую доску.",
   canceled: "Ок, отменил постановку задачи ✋ Можешь прислать новый текст.",
   boardChanged: "Хорошо, давай выберем другую доску 🔄",
   waitBoard: "Сначала выбери доску из кнопок ниже 👇",
   waitList: "Сначала выбери колонку из кнопок ниже 👇",
-  cardCreated: (cardName: string, boardName: string, cardShortUrl: string) =>
-    `Готово! Карточка *${cardName}* создана на доске *${boardName}* 🎉\nСсылка: ${cardShortUrl}`,
+  cardCreated: (cardName: string, cardShortUrl: string) =>
+    `Готово! Карточка *${cardName}* создана 🎉\nСсылка: ${cardShortUrl}`,
   cardInProgress: "Принято! Собираю карточку и отправляю в Trello ⏳",
   genericError: "Ой, что-то пошло не так 😔 Попробуй еще раз.",
   unsupportedMessage: "Пока поддерживаются только текстовые сообщения 💬"
@@ -202,6 +204,7 @@ async function onBoardSelected(params: {
 
   session.selectedBoardId = selectedBoard.id;
   session.selectedBoardName = selectedBoard.name;
+  await replaceCallbackMessageText(ctx, BOT_TEXT.boardSelected(escapeMarkdown(selectedBoard.name)));
 
   const lists = await trelloClient.getBoardLists(selectedBoard.id);
 
@@ -214,9 +217,7 @@ async function onBoardSelected(params: {
   session.stage = "selecting_list";
   session.lists = lists;
 
-  await replyMarkdown(ctx, BOT_TEXT.pickList(escapeMarkdown(selectedBoard.name)), {
-    reply_markup: listsKeyboard(lists)
-  });
+  await replyMarkdown(ctx, BOT_TEXT.pickList, { reply_markup: listsKeyboard(lists) });
 }
 
 async function onListSelected(params: {
@@ -241,7 +242,9 @@ async function onListSelected(params: {
     return;
   }
 
-  await replyMarkdown(ctx, BOT_TEXT.cardInProgress);
+  await replaceCallbackMessageText(ctx, BOT_TEXT.listSelected(escapeMarkdown(selectedList.name)));
+
+  const progressMessage = await replyMarkdown(ctx, BOT_TEXT.cardInProgress);
 
   const cardInput = await llmClient.generateCardInput({
     messages: session.messages,
@@ -250,15 +253,13 @@ async function onListSelected(params: {
 
   const card = await trelloClient.createCard(cardInput);
 
-  await replyMarkdown(
+  await replaceBotMessageText(
     ctx,
-    BOT_TEXT.cardCreated(
-      escapeMarkdown(card.name),
-      escapeMarkdown(session.selectedBoardName ?? "неизвестная доска"),
-      card.shortUrl
-    ),
+    progressMessage.message_id,
+    BOT_TEXT.cardCreated(escapeMarkdown(card.name), escapeMarkdown(card.shortUrl)),
     { reply_markup: cardCreatedKeyboard(card.shortUrl) }
   );
+
   session.stage = "collecting";
   session.messages = [];
   session.boards = [];
@@ -321,8 +322,8 @@ async function replyMarkdown(
   ctx: Context,
   text: string,
   extra?: Parameters<Context["reply"]>[1]
-): Promise<void> {
-  await ctx.reply(text, { parse_mode: "Markdown", ...extra });
+): Promise<Awaited<ReturnType<Context["reply"]>>> {
+  return ctx.reply(text, { parse_mode: "Markdown", ...extra });
 }
 
 async function safeAnswerCbQuery(ctx: Context): Promise<void> {
@@ -337,5 +338,60 @@ async function safeAnswerCbQuery(ctx: Context): Promise<void> {
     if (!isExpiredQuery) {
       throw error;
     }
+  }
+}
+
+async function replaceCallbackMessageText(ctx: Context, text: string): Promise<void> {
+  try {
+    await ctx.editMessageText(text, { parse_mode: "Markdown" });
+  } catch (error) {
+    const normalized = normalizeError(error);
+    const message = normalized.message.toLowerCase();
+    const isIgnorableError =
+      message.includes("message is not modified") ||
+      message.includes("message to edit not found") ||
+      message.includes("message identifier is not specified") ||
+      message.includes("message can't be edited");
+
+    if (!isIgnorableError) {
+      throw error;
+    }
+
+    await replyMarkdown(ctx, text);
+  }
+}
+
+async function replaceBotMessageText(
+  ctx: Context,
+  messageId: number,
+  text: string,
+  extra?: {
+    reply_markup?: ReturnType<typeof cardCreatedKeyboard>;
+  }
+): Promise<void> {
+  const chatId = ctx.chat?.id;
+  if (chatId === undefined) {
+    await replyMarkdown(ctx, text, extra);
+    return;
+  }
+
+  try {
+    await ctx.telegram.editMessageText(chatId, messageId, undefined, text, {
+      parse_mode: "Markdown",
+      ...extra
+    });
+  } catch (error) {
+    const normalized = normalizeError(error);
+    const message = normalized.message.toLowerCase();
+    const isIgnorableError =
+      message.includes("message is not modified") ||
+      message.includes("message to edit not found") ||
+      message.includes("message can't be edited");
+
+    if (isIgnorableError) {
+      return;
+    }
+
+    await replyMarkdown(ctx, text, extra);
   }
 }
