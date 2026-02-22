@@ -7,7 +7,13 @@ import { logger } from "../logger/logger.js";
 import { TrelloClient } from "../trello/trello-client.js";
 import type { TrelloBoard, TrelloList } from "../trello/types.js";
 import { validateTaskTextLength } from "./card-content.js";
-import { boardsKeyboard, cancelKeyboard, cardCreatedKeyboard, listsKeyboard } from "./keyboards.js";
+import {
+  boardsKeyboard,
+  cancelKeyboard,
+  cardCreatedKeyboard,
+  listsKeyboard,
+  reuseSelectionKeyboard
+} from "./keyboards.js";
 import { SessionStore } from "./session-store.js";
 
 const BOT_TEXT = {
@@ -17,16 +23,19 @@ const BOT_TEXT = {
     `Пока маловато текста: ${length} символов. Нужно минимум 15. Пришли, пожалуйста, еще немного деталей.`,
   pickBoard: "Отлично, теперь выбери доску, где создать карточку:",
   noBoards: "Не нашла доступные доски для этого пользователя Trello 🕵",
+  reuseSelection: (boardName: string, listName: string) =>
+    `Доска: *${boardName}*\nКолонка: *${listName}*\n\nСоздать карточку тут?`,
   pickList: "Теперь выбери список:",
   boardSelected: (boardName: string) => `Доска: *${boardName}*`,
   listSelected: (listName: string) => `Колонка: *${listName}*`,
   noLists: "В этой доске пока нет доступных колонок 😕 Давай выберем другую доску.",
   canceled: "Ок, отменил постановку задачи ✋ Можешь прислать новый текст.",
   boardChanged: "Хорошо, давай выберем другую доску 🔄",
+  waitLastSelection: "Выбери один из вариантов ниже 👇",
   waitBoard: "Сначала выбери доску из кнопок ниже 👇",
   waitList: "Сначала выбери колонку из кнопок ниже 👇",
   cardCreated: (cardName: string, cardShortUrl: string) =>
-    `Готово! Карточка *${cardName}* создана 🎉\nСсылка: ${cardShortUrl}`,
+    `Готово! 🎉 Карточка *${cardName}* создана.\nСсылка: ${cardShortUrl}`,
   cardInProgress: "Принято! Собираю карточку и отправляю в Trello ⏳",
   genericError: "Ой, что-то пошло не так 😔 Попробуй еще раз.",
   unsupportedMessage: "Пока поддерживаются только текстовые сообщения 💬"
@@ -37,6 +46,8 @@ type Dependencies = {
   trelloClient: TrelloClient;
   llmClient: LlmClient;
 };
+
+type BotSession = ReturnType<SessionStore["get"]>;
 
 export function createTelegramBot({ telegramToken, trelloClient, llmClient }: Dependencies): Telegraf {
   const bot = new Telegraf(telegramToken);
@@ -83,6 +94,11 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
         return;
       }
 
+      if (session.stage === "confirming_last_selection") {
+        await replyMarkdown(ctx, BOT_TEXT.waitLastSelection);
+        return;
+      }
+
       const text = message.text.trim();
       if (!text) {
         return;
@@ -93,6 +109,19 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
 
       if (!validation.ok) {
         await replyMarkdown(ctx, BOT_TEXT.tooShort(validation.currentLength));
+        return;
+      }
+
+      if (hasLastSelection(session)) {
+        session.stage = "confirming_last_selection";
+        await replyMarkdown(
+          ctx,
+          BOT_TEXT.reuseSelection(
+            escapeMarkdown(session.lastBoardName ?? ""),
+            escapeMarkdown(session.lastListName ?? "")
+          ),
+          { reply_markup: reuseSelectionKeyboard() }
+        );
         return;
       }
 
@@ -147,9 +176,33 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
         session.stage = "selecting_board";
         session.selectedBoardId = undefined;
         session.selectedBoardName = undefined;
+        session.selectedListId = undefined;
+        session.selectedListName = undefined;
         session.lists = [];
-        await replyMarkdown(ctx, BOT_TEXT.boardChanged);
+        await replaceCallbackMessageText(ctx, BOT_TEXT.boardChanged);
         await sendBoards(ctx, trelloClient, session);
+        return;
+      }
+
+      if (data === "action:use_last_selection") {
+        if (!hasLastSelection(session)) {
+          session.stage = "selecting_board";
+          await sendBoards(ctx, trelloClient, session);
+          return;
+        }
+
+        session.selectedBoardId = session.lastBoardId;
+        session.selectedBoardName = session.lastBoardName;
+        session.selectedListId = session.lastListId;
+        session.selectedListName = session.lastListName;
+
+        await replaceCallbackMessageText(
+          ctx,
+          `${BOT_TEXT.boardSelected(escapeMarkdown(session.selectedBoardName ?? ""))}\n${BOT_TEXT.listSelected(
+            escapeMarkdown(session.selectedListName ?? "")
+          )}`
+        );
+        await createCardFromCurrentSelection({ session, ctx, trelloClient, llmClient });
         return;
       }
 
@@ -183,14 +236,7 @@ export function createTelegramBot({ telegramToken, trelloClient, llmClient }: De
 
 async function onBoardSelected(params: {
   boardId: string;
-  session: {
-    stage: "collecting" | "selecting_board" | "selecting_list";
-    messages: string[];
-    boards: TrelloBoard[];
-    lists: TrelloList[];
-    selectedBoardId?: string;
-    selectedBoardName?: string;
-  };
+  session: BotSession;
   ctx: Context;
   trelloClient: TrelloClient;
 }): Promise<void> {
@@ -204,6 +250,8 @@ async function onBoardSelected(params: {
 
   session.selectedBoardId = selectedBoard.id;
   session.selectedBoardName = selectedBoard.name;
+  session.selectedListId = undefined;
+  session.selectedListName = undefined;
   await replaceCallbackMessageText(ctx, BOT_TEXT.boardSelected(escapeMarkdown(selectedBoard.name)));
 
   const lists = await trelloClient.getBoardLists(selectedBoard.id);
@@ -222,14 +270,7 @@ async function onBoardSelected(params: {
 
 async function onListSelected(params: {
   listId: string;
-  session: {
-    stage: "collecting" | "selecting_board" | "selecting_list";
-    messages: string[];
-    boards: TrelloBoard[];
-    lists: TrelloList[];
-    selectedBoardId?: string;
-    selectedBoardName?: string;
-  };
+  session: BotSession;
   ctx: Context;
   trelloClient: TrelloClient;
   llmClient: LlmClient;
@@ -244,11 +285,31 @@ async function onListSelected(params: {
 
   await replaceCallbackMessageText(ctx, BOT_TEXT.listSelected(escapeMarkdown(selectedList.name)));
 
+  session.selectedListId = selectedList.id;
+  session.selectedListName = selectedList.name;
+  await createCardFromCurrentSelection({ session, ctx, trelloClient, llmClient });
+}
+
+async function createCardFromCurrentSelection(params: {
+  session: BotSession;
+  ctx: Context;
+  trelloClient: TrelloClient;
+  llmClient: LlmClient;
+}): Promise<void> {
+  const { session, ctx, trelloClient, llmClient } = params;
+
+  if (!session.selectedListId || !session.selectedBoardId) {
+    throw new AppError({
+      message: "Selected board/list is required to create card",
+      code: "SELECTION_REQUIRED"
+    });
+  }
+
   const progressMessage = await replyMarkdown(ctx, BOT_TEXT.cardInProgress);
 
   const cardInput = await llmClient.generateCardInput({
     messages: session.messages,
-    idList: selectedList.id
+    idList: session.selectedListId
   });
 
   const card = await trelloClient.createCard(cardInput);
@@ -260,21 +321,25 @@ async function onListSelected(params: {
     { reply_markup: cardCreatedKeyboard(card.shortUrl) }
   );
 
+  session.lastBoardId = session.selectedBoardId;
+  session.lastBoardName = session.selectedBoardName;
+  session.lastListId = session.selectedListId;
+  session.lastListName = session.selectedListName;
+
   session.stage = "collecting";
   session.messages = [];
   session.boards = [];
   session.lists = [];
   session.selectedBoardId = undefined;
   session.selectedBoardName = undefined;
+  session.selectedListId = undefined;
+  session.selectedListName = undefined;
 }
 
 async function sendBoards(
   ctx: Context,
   trelloClient: TrelloClient,
-  session: {
-    stage: "collecting" | "selecting_board" | "selecting_list";
-    boards: TrelloBoard[];
-  }
+  session: BotSession
 ): Promise<void> {
   const boards = await trelloClient.getMemberBoards();
   session.boards = boards;
@@ -286,6 +351,12 @@ async function sendBoards(
   }
 
   await replyMarkdown(ctx, BOT_TEXT.pickBoard, { reply_markup: boardsKeyboard(boards) });
+}
+
+function hasLastSelection(session: BotSession): boolean {
+  return Boolean(
+    session.lastBoardId && session.lastBoardName && session.lastListId && session.lastListName
+  );
 }
 
 function formatBotError(error: AppError): string {

@@ -28,6 +28,16 @@ export function cancelKeyboard() {
   };
 }
 
+export function reuseSelectionKeyboard() {
+  return {
+    inline_keyboard: [
+      [{ text: "Создать тут", callback_data: "action:use_last_selection" }],
+      CHANGE_BOARD_BUTTON,
+      CANCEL_BUTTON
+    ]
+  };
+}
+
 export function cardCreatedKeyboard(cardUrl: string) {
   return {
     inline_keyboard: [[{ text: "Открыть карточку", url: cardUrl }]]
