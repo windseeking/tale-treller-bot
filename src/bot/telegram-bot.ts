@@ -334,6 +334,7 @@ async function createCardFromCurrentSelection(params: {
     messages: session.messages,
     idList: session.selectedListId
   });
+  cardInput.desc = appendBotSignature(cardInput.desc);
 
   const card = await trelloClient.createCard(cardInput);
 
@@ -560,4 +561,11 @@ async function hideMainReplyKeyboard(ctx: Context): Promise<void> {
       "Could not hide main reply keyboard"
     );
   }
+}
+
+function appendBotSignature(desc: string): string {
+  const signature = "Task created with [@taletrellerbot](https://t.me/taletrellerbot).";
+  const trimmedDesc = desc.trimEnd();
+
+  return `${trimmedDesc}\n\n${signature}`;
 }
