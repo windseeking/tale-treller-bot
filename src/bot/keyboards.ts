@@ -1,7 +1,7 @@
 import type { TrelloBoard, TrelloList } from "../trello/types.js";
 
-const CANCEL_BUTTON = [{ text: "Отмена", callback_data: "action:cancel" }];
-const CHANGE_BOARD_BUTTON = [{ text: "Поменять доску", callback_data: "action:change_board" }];
+const CANCEL_BUTTON = [{ text: "❌ Отмена", callback_data: "action:cancel" }];
+const CHANGE_BOARD_BUTTON = [{ text: "↩️ Поменять доску", callback_data: "action:change_board" }];
 
 export function boardsKeyboard(boards: TrelloBoard[]) {
   return {
