@@ -1,25 +1,60 @@
+import { TrelloAuthService } from "./auth/trello-auth-service.js";
+import { createTelegramBot } from "./bot/telegram-bot.js";
 import { env } from "./config/env.js";
+import { DbClient } from "./db/client.js";
+import { runMigrations } from "./db/migrations.js";
+import { TrelloAuthSessionsRepository } from "./db/repositories/trello-auth-sessions-repository.js";
+import { TrelloConnectionsRepository } from "./db/repositories/trello-connections-repository.js";
+import { TelegramUsersRepository } from "./db/repositories/telegram-users-repository.js";
 import { normalizeError, toLogPayload } from "./errors/error-handler.js";
-import { TrelloClient } from "./trello/trello-client.js";
+import { createHttpServer } from "./http/server.js";
 import { LlmClient } from "./llm/llm-client.js";
 import { logger } from "./logger/logger.js";
-import { createTelegramBot } from "./bot/telegram-bot.js";
+import { TrelloClient } from "./trello/trello-client.js";
 
 let shuttingDown = false;
 let stopBot: (() => Promise<void>) | null = null;
+let stopHttp: (() => Promise<void>) | null = null;
+let closeDb: (() => Promise<void>) | null = null;
 
 async function bootstrap(): Promise<void> {
+  const db = new DbClient();
+  closeDb = async () => {
+    await db.close();
+  };
+
+  await runMigrations(db);
+
   const trelloClient = new TrelloClient();
   const llmClient = new LlmClient();
+
+  const telegramUsersRepository = new TelegramUsersRepository(db);
+  const trelloConnectionsRepository = new TrelloConnectionsRepository(db);
+  const trelloAuthSessionsRepository = new TrelloAuthSessionsRepository(db);
+
+  const trelloAuthService = new TrelloAuthService(
+    telegramUsersRepository,
+    trelloConnectionsRepository,
+    trelloAuthSessionsRepository
+  );
+
+  const httpServer = createHttpServer(trelloAuthService);
+  await httpServer.start();
+  stopHttp = async () => {
+    await httpServer.stop();
+  };
+
   const bot = createTelegramBot({
     telegramToken: env.TELEGRAM_BOT_TOKEN,
     trelloClient,
-    llmClient
+    llmClient,
+    trelloAuthService
   });
 
   logger.info(
     {
-      nodeEnv: env.NODE_ENV
+      nodeEnv: env.NODE_ENV,
+      appPort: env.APP_PORT
     },
     "Telegram Trello bot bootstrap initialized"
   );
@@ -34,7 +69,7 @@ async function bootstrap(): Promise<void> {
     bot.stop("shutdown");
   };
 
-  logger.info("Telegram bot started.");
+  logger.info("Telegram bot and HTTP auth server started.");
 }
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
@@ -44,9 +79,19 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   shuttingDown = true;
 
   logger.warn({ signal }, "Shutdown signal received");
+
   if (stopBot) {
     await stopBot();
   }
+
+  if (stopHttp) {
+    await stopHttp();
+  }
+
+  if (closeDb) {
+    await closeDb();
+  }
+
   logger.info("Application stopped");
   process.exit(0);
 }

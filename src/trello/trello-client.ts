@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-import { env } from "../config/env.js";
 import { AppError } from "../errors/app-error.js";
-import type { CreateTrelloCardInput, TrelloBoard, TrelloCard, TrelloList } from "./types.js";
+import type { CreateTrelloCardInput, TrelloAuthContext, TrelloBoard, TrelloCard, TrelloList } from "./types.js";
 
 const boardSchema = z.object({
   id: z.string(),
@@ -50,9 +49,10 @@ type RequestDebug = {
 export class TrelloClient {
   private readonly baseUrl = "https://api.trello.com/1";
 
-  public async getMemberBoards(): Promise<TrelloBoard[]> {
+  public async getMemberBoards(auth: TrelloAuthContext): Promise<TrelloBoard[]> {
     const payload = await this.request({
-      path: `/members/${env.TRELLO_MEMBER_ID}/boards`,
+      path: `/members/${auth.memberId}/boards`,
+      auth,
       options: {
         method: "GET",
         query: {
@@ -65,9 +65,10 @@ export class TrelloClient {
     return z.array(boardSchema).parse(payload);
   }
 
-  public async getBoardLists(boardId: string): Promise<TrelloList[]> {
+  public async getBoardLists(boardId: string, auth: TrelloAuthContext): Promise<TrelloList[]> {
     const payload = await this.request({
       path: `/boards/${boardId}/lists`,
+      auth,
       options: {
         method: "GET",
         query: {
@@ -80,9 +81,10 @@ export class TrelloClient {
     return z.array(listSchema).parse(payload);
   }
 
-  public async createCard(input: CreateTrelloCardInput): Promise<TrelloCard> {
+  public async createCard(input: CreateTrelloCardInput, auth: TrelloAuthContext): Promise<TrelloCard> {
     const payload = await this.request({
       path: "/cards",
+      auth,
       options: {
         method: "POST",
         query: {
@@ -99,10 +101,14 @@ export class TrelloClient {
     return cardSchema.parse(payload);
   }
 
-  private async request(params: { path: string; options?: RequestOptions }): Promise<unknown> {
+  private async request(params: {
+    path: string;
+    auth: TrelloAuthContext;
+    options?: RequestOptions;
+  }): Promise<unknown> {
     const method = params.options?.method ?? "GET";
     const requestQuery = params.options?.query ?? {};
-    const url = this.buildUrl(params.path, method === "GET" ? requestQuery : undefined);
+    const url = this.buildUrl(params.path, params.auth, method === "GET" ? requestQuery : undefined);
     const body = method === "POST" ? this.toFormBody(requestQuery) : undefined;
 
     const debugRequest: RequestDebug = {
@@ -134,11 +140,15 @@ export class TrelloClient {
     return parsedBody ?? {};
   }
 
-  private buildUrl(path: string, query?: Record<string, string | undefined>): string {
+  private buildUrl(
+    path: string,
+    auth: TrelloAuthContext,
+    query?: Record<string, string | undefined>
+  ): string {
     const url = new URL(`${this.baseUrl}${path}`);
 
-    url.searchParams.set("key", env.TRELLO_API_KEY);
-    url.searchParams.set("token", env.TRELLO_TOKEN);
+    url.searchParams.set("key", auth.apiKey);
+    url.searchParams.set("token", auth.token);
 
     if (query) {
       for (const [key, value] of Object.entries(query)) {

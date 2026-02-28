@@ -1,3 +1,9 @@
+export type TrelloAuthContext = {
+  apiKey: string;
+  token: string;
+  memberId: string;
+};
+
 export type TrelloBoard = {
   id: string;
   name: string;
