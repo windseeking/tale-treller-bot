@@ -23,6 +23,13 @@ Always read these files before editing code:
   - `docs/architecture.md`
   - `docs/definition-of-done.md`
 
+## Project Skills
+- Local project skills live in `skills/`.
+- Before PRD, planning, or issue-generation work, check whether a relevant `skills/*/SKILL.md` exists and follow it when applicable.
+- Current local skills:
+  - `skills/prd-to-issues/SKILL.md`
+  - `skills/prd-to-plan/SKILL.md`
+
 ## Checks Before Completing a Task
 - Run: `npm run typecheck`
 - Verify behavior matches `product-spec.md` and `flows.md`.
