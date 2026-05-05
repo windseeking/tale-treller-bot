@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { AppError } from "../errors/app-error.js";
 import type { CreateTrelloCardInput, TrelloAuthContext, TrelloBoard, TrelloCard, TrelloList } from "./types.js";
+import {logger} from "../logger/logger.js";
 
 const boardSchema = z.object({
   id: z.string(),

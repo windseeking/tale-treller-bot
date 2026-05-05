@@ -4,11 +4,14 @@ import { env } from "../config/env.js";
 import { TrelloAuthSessionsRepository } from "../db/repositories/trello-auth-sessions-repository.js";
 import { TrelloConnectionsRepository } from "../db/repositories/trello-connections-repository.js";
 import { TelegramUsersRepository } from "../db/repositories/telegram-users-repository.js";
+import { UserSettingsRepository } from "../db/repositories/user-settings-repository.js";
 import { AppError } from "../errors/app-error.js";
 import { normalizeError, toLogPayload } from "../errors/error-handler.js";
 import { logger } from "../logger/logger.js";
 import { decryptString, encryptString, generateOpaqueSecret, hashSecret, isSecretHashMatch } from "../security/crypto.js";
-import { authorizedReplyKeyboard } from "../bot/keyboards.js";
+import { SettingsService } from "../settings/settings-service.js";
+import { isValidTimeZone } from "../settings/time-zone.js";
+import { authorizedReplyKeyboard, settingsAppKeyboard } from "../bot/keyboards.js";
 import { BOT_MESSAGES } from "../bot/messages.js";
 import { buildOAuthHeader } from "./trello-oauth.js";
 
@@ -50,7 +53,9 @@ export class TrelloAuthService {
   public constructor(
     private readonly telegramUsersRepository: TelegramUsersRepository,
     private readonly trelloConnectionsRepository: TrelloConnectionsRepository,
-    private readonly trelloAuthSessionsRepository: TrelloAuthSessionsRepository
+    private readonly trelloAuthSessionsRepository: TrelloAuthSessionsRepository,
+    private readonly userSettingsRepository: UserSettingsRepository,
+    private readonly settingsService: SettingsService
   ) {}
 
   public async createAuthorizationLink(params: {
@@ -270,7 +275,7 @@ export class TrelloAuthService {
     }
 
     const memberResponse = await fetch(
-      `${MEMBERS_ME_URL}?key=${encodeURIComponent(env.TRELLO_API_KEY)}&token=${encodeURIComponent(accessToken)}&fields=id,username`
+      `${MEMBERS_ME_URL}?key=${encodeURIComponent(env.TRELLO_API_KEY)}&token=${encodeURIComponent(accessToken)}&fields=id,username,prefs`
     );
     const memberPayload = await memberResponse.text();
     let memberData: unknown = null;
@@ -300,6 +305,15 @@ export class TrelloAuthService {
       telegramChatId: session.telegramChatId
     });
 
+    const existingTimeZone = await this.userSettingsRepository.findTimeZone(session.telegramUserId);
+    const timeZone = extractValidTimeZone(memberData);
+    if (timeZone) {
+      await this.userSettingsRepository.upsertTimeZone({
+        telegramUserId: session.telegramUserId,
+        timeZone
+      });
+    }
+
     await this.trelloConnectionsRepository.upsertActive({
       telegramUserId: session.telegramUserId,
       trelloMemberId: memberData.id,
@@ -311,7 +325,16 @@ export class TrelloAuthService {
 
     await this.trelloAuthSessionsRepository.updateStatus(session.id, "completed");
 
-    await this.sendTelegramSuccessNotification(session.telegramChatId);
+    await this.sendTelegramSuccessNotification({
+      telegramUserId: session.telegramUserId,
+      telegramChatId: session.telegramChatId
+    });
+    if (!timeZone && !existingTimeZone) {
+      await this.sendTimeZoneSetupPrompt({
+        telegramUserId: session.telegramUserId,
+        telegramChatId: session.telegramChatId
+      });
+    }
 
     return { ok: true, reason: BOT_MESSAGES.authServiceConnected };
   }
@@ -356,17 +379,24 @@ export class TrelloAuthService {
     await this.trelloAuthSessionsRepository.failPendingByTelegramUser(telegramUserId);
   }
 
-  private async sendTelegramSuccessNotification(chatId: number): Promise<void> {
+  private async sendTelegramSuccessNotification(params: {
+    telegramUserId: number;
+    telegramChatId: number;
+  }): Promise<void> {
     try {
+      const link = await this.settingsService.createAppLaunchLink({
+        telegramUserId: params.telegramUserId,
+        telegramChatId: params.telegramChatId
+      });
       await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          chat_id: chatId,
+          chat_id: params.telegramChatId,
           text: BOT_MESSAGES.authServiceConnectedNotification,
-          reply_markup: authorizedReplyKeyboard()
+          reply_markup: authorizedReplyKeyboard(link.url)
         })
       });
     } catch (error) {
@@ -374,9 +404,36 @@ export class TrelloAuthService {
       logger.warn(toLogPayload(normalized, { scope: "telegram", action: "sendAuthSuccessNotification" }));
     }
   }
+
+  private async sendTimeZoneSetupPrompt(params: {
+    telegramUserId: number;
+    telegramChatId: number;
+  }): Promise<void> {
+    try {
+      const link = await this.settingsService.createAppLaunchLink({
+        telegramUserId: params.telegramUserId,
+        telegramChatId: params.telegramChatId
+      });
+
+      await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          chat_id: params.telegramChatId,
+          text: BOT_MESSAGES.timeZoneSetupIntro,
+          reply_markup: settingsAppKeyboard(link.url)
+        })
+      });
+    } catch (error) {
+      const normalized = normalizeError(error);
+      logger.warn(toLogPayload(normalized, { scope: "telegram", action: "sendTimeZoneSetupPrompt" }));
+    }
+  }
 }
 
-function isMemberPayload(value: unknown): value is { id: string; username: string } {
+function isMemberPayload(value: unknown): value is { id: string; username: string; prefs?: unknown } {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -387,4 +444,24 @@ function isMemberPayload(value: unknown): value is { id: string; username: strin
     "username" in value &&
     typeof value.username === "string"
   );
+}
+
+function extractValidTimeZone(member: { prefs?: unknown }): string | null {
+  const prefs = member.prefs;
+  if (typeof prefs !== "object" || prefs === null) {
+    return null;
+  }
+
+  if ("timezone" in prefs && typeof prefs.timezone === "string" && isValidTimeZone(prefs.timezone)) {
+    return prefs.timezone;
+  }
+
+  if ("timezoneInfo" in prefs && typeof prefs.timezoneInfo === "object" && prefs.timezoneInfo !== null) {
+    const timezoneInfo = prefs.timezoneInfo;
+    if ("timezone" in timezoneInfo && typeof timezoneInfo.timezone === "string" && isValidTimeZone(timezoneInfo.timezone)) {
+      return timezoneInfo.timezone;
+    }
+  }
+
+  return null;
 }

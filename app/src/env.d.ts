@@ -1,0 +1,23 @@
+/// <reference types="vite/client" />
+
+declare module "*.vue" {
+  import type { DefineComponent } from "vue";
+
+  const component: DefineComponent<Record<string, never>, Record<string, never>, unknown>;
+  export default component;
+}
+
+type TelegramWebApp = {
+  ready: () => void;
+  expand: () => void;
+  close: () => void;
+  MainButton?: {
+    hide: () => void;
+  };
+};
+
+interface Window {
+  Telegram?: {
+    WebApp?: TelegramWebApp;
+  };
+}

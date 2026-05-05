@@ -61,3 +61,38 @@
 **Decision:** Encrypt Trello token (and request token secret) in DB using AES-256-GCM with master key from env.
 
 **Reason:** Limit blast radius of DB leakage and satisfy baseline production security requirements.
+
+---
+
+## D-010: User Settings as Key/Value + Internal Timezone
+**Decision:** Store user settings as key/value records and store timezone as an internal IANA timezone ID under `time_zone`.
+
+**Reason:** IANA timezone preserves daylight-saving rules while Telegram UX can stay human-readable. The key/value shape is ready for future settings and App writes.
+
+---
+
+## D-011: Telegram App for Settings
+**Decision:** Move settings UX to a Telegram App served from `/app`, with APIs under `/api/app/*`, Vue 3 + Vite + PrimeVue 4, one-time server-side launch sessions, and standard IANA timezone names in every locale.
+
+**Reason:** Chat inline keyboards are not a good fit for timezone selection because same-offset cities can be far apart and confusing. A searchable App selector over IANA timezone names plus current UTC offsets gives better UX without maintaining localized timezone labels.
+
+---
+
+## D-012: Product App Palette
+**Decision:** Use the palette defined in `docs/product-spec.md` for the App, with Funky Blue as the PrimeVue primary color and Base as the page background.
+
+**Reason:** The App needs a consistent visual identity now that settings and account information are moving into a richer frontend surface.
+
+---
+
+## D-013: Tailwind CSS for App Layout Styling
+**Decision:** Use Tailwind CSS utilities for Telegram App layout and custom surface styling while keeping PrimeVue for interactive components and the Aura-based theme.
+
+**Reason:** Utility classes keep single-component App layout changes close to the Vue template without replacing the existing PrimeVue component system.
+
+---
+
+## D-014: Vite Middleware for App Development
+**Decision:** In `NODE_ENV=development`, serve the Telegram App from Vite middleware on the same Express server and `/app` path used by Telegram links. In non-development modes, continue serving built static files from `dist/public/app`.
+
+**Reason:** Telegram Mini App previews need the public `APP_BASE_URL/app` URL, but frontend iteration should not require rebuilding the App after every change.

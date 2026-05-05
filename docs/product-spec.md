@@ -12,6 +12,7 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 - Text-only input.
 - In-memory draft/session state for chat UX.
 - Persistent PostgreSQL storage for Trello authorization state.
+- Persistent PostgreSQL storage for user settings.
 
 ## Core Features
 1. Draft accumulation from multiple messages.
@@ -23,15 +24,47 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 7. Trello card creation with success link.
 8. Trello OAuth connect/reconnect per Telegram user.
 9. Trello disconnect control in reply keyboard and status check via command.
+10. Telegram App settings surface with timezone setup and Trello status/actions.
 
 ## UX Principles
 - No noisy bot responses while draft is being collected.
 - Task creation starts only on explicit user action.
 - Selection buttons should disappear via message edits.
-- If user is not connected to Trello, the reply keyboard shows only `Connect Trello`.
-- If user is connected to Trello, the reply keyboard shows `Create task`, `Cancel`, `Disconnect Trello`.
+- If user is not connected to Trello, the reply keyboard shows `Connect Trello` and a `Settings` Web App button.
+- If user is connected to Trello, the reply keyboard shows `Create task`, `Cancel`, a `Settings` Web App button, and `Disconnect Trello`.
 - If Trello is missing/revoked/expired, flow stops safely and draft text is preserved.
+- If timezone is not configured, task creation continues with `APP_TIMEZONE`.
 - Error responses must include enough debug context.
+
+## User Settings Policy
+- User settings are stored as per-user key/value records.
+- Timezone is stored under `time_zone` as an internal IANA timezone ID.
+- The bot does not expose timezone selection in Telegram chat; users configure settings in the Telegram App.
+- The bot may prefill timezone from Trello prefs, browser detection, or manual selection.
+- Manual timezone selection in the App uses a searchable list of IANA timezone names with current UTC offset labels and saves immediately on selection.
+- LLM card generation receives the current date-time with the computed current UTC offset in the prompt.
+- If no valid timezone is saved, `APP_TIMEZONE` is used as the safe default timezone.
+
+## Telegram App Policy
+- The settings App is served from `/app`.
+- App API endpoints use `/api/app/*`.
+- The App is opened from a Telegram `web_app` button using one-time server-side launch sessions.
+- App launch links exchange `sid` and `secret` for a short-lived bearer token before using App APIs.
+- The App can show Trello connection status, create a Trello connect link, and disconnect Trello.
+
+## Visual Design Palette
+- `#1555BD` — Blue, primary.
+- `#A78BFA` — Violet, accent.
+- `#A9E546` — Lime, secondary accent.
+- `#22D3EE` — Cyan, tertiary accent.
+- `#0F172A` — Ink, main text.
+- `#334155` — Slate, secondary text.
+- `#E0F2FE` — Sky Mist, primary surfaces.
+- `#F5F3FF` — Violet Mist, accent surfaces.
+- `#F7FEE7` — Lime Mist, secondary surfaces.
+- `#F8FAFC` — Base, background.
+- `#22C55E` — Green, success.
+- `#F43F5E` — Rose, cancel/error.
 
 ## Trello Auth Policy
 - OAuth-based connect flow via web callback endpoint.

@@ -3,13 +3,17 @@ import { createTelegramBot } from "./bot/telegram-bot.js";
 import { env } from "./config/env.js";
 import { DbClient } from "./db/client.js";
 import { runMigrations } from "./db/migrations.js";
+import { AppSessionsRepository } from "./db/repositories/app-sessions-repository.js";
 import { TrelloAuthSessionsRepository } from "./db/repositories/trello-auth-sessions-repository.js";
 import { TrelloConnectionsRepository } from "./db/repositories/trello-connections-repository.js";
 import { TelegramUsersRepository } from "./db/repositories/telegram-users-repository.js";
 import { normalizeError, toLogPayload } from "./errors/error-handler.js";
+import { SettingsUpdateSessionsRepository } from "./db/repositories/settings-update-sessions-repository.js";
+import { UserSettingsRepository } from "./db/repositories/user-settings-repository.js";
 import { createHttpServer } from "./http/server.js";
 import { LlmClient } from "./llm/llm-client.js";
 import { logger } from "./logger/logger.js";
+import { SettingsService } from "./settings/settings-service.js";
 import { TrelloClient } from "./trello/trello-client.js";
 
 let shuttingDown = false;
@@ -31,14 +35,24 @@ async function bootstrap(): Promise<void> {
   const telegramUsersRepository = new TelegramUsersRepository(db);
   const trelloConnectionsRepository = new TrelloConnectionsRepository(db);
   const trelloAuthSessionsRepository = new TrelloAuthSessionsRepository(db);
+  const userSettingsRepository = new UserSettingsRepository(db);
+  const settingsUpdateSessionsRepository = new SettingsUpdateSessionsRepository(db);
+  const appSessionsRepository = new AppSessionsRepository(db);
+  const settingsService = new SettingsService(
+    userSettingsRepository,
+    settingsUpdateSessionsRepository,
+    appSessionsRepository
+  );
 
   const trelloAuthService = new TrelloAuthService(
     telegramUsersRepository,
     trelloConnectionsRepository,
-    trelloAuthSessionsRepository
+    trelloAuthSessionsRepository,
+    userSettingsRepository,
+    settingsService
   );
 
-  const httpServer = createHttpServer(trelloAuthService);
+  const httpServer = createHttpServer(trelloAuthService, settingsService);
   await httpServer.start();
   stopHttp = async () => {
     await httpServer.stop();
@@ -48,7 +62,10 @@ async function bootstrap(): Promise<void> {
     telegramToken: env.TELEGRAM_BOT_TOKEN,
     trelloClient,
     llmClient,
-    trelloAuthService
+    trelloAuthService,
+    telegramUsersRepository,
+    userSettingsRepository,
+    settingsService
   });
 
   logger.info(
