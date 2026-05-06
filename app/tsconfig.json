@@ -8,10 +8,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "rootDir": "..",
     "outDir": "../dist/app-ts",
-    "types": ["vite/client"],
-    "paths": {
-      "@shared/i18n": ["../src/shared/i18n/index.ts"]
-    }
+    "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.json", "vite.config.ts", "../src/shared/i18n/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
 }

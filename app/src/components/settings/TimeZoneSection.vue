@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { useI18n } from 'vue-i18n'
 
 import { useSettingsApi } from '../../composables/api/useSettingsApi'
 import type { SettingsPayload, TimeZoneOption } from '../../types/app'
@@ -17,7 +16,6 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const { t } = useI18n()
 const { saveTimeZone: saveTimeZoneRequest } = useSettingsApi()
 
 const filteredTimeZones = ref<TimeZoneOption[]>([])
@@ -59,7 +57,7 @@ async function detectTimeZone(): Promise<void> {
 
   if (!option) {
     detectSeverity.value = 'warn'
-    detectMessage.value = t('sections.timeZone.autoDetectFailed')
+    detectMessage.value = 'Не удалось определить часовой пояс. Выберите его вручную в списке.'
     return
   }
 
@@ -86,15 +84,15 @@ async function saveTimeZone(option: TimeZoneOption | null): Promise<void> {
     selectedTimeZone.value = findTimeZone(payload.settings.timeZone ?? payload.settings.defaultTimeZone)
     toast.add({
       severity: 'success',
-      summary: t('toasts.saved'),
-      detail: t('toasts.timeZoneUpdated'),
+      summary: 'Сохранено',
+      detail: 'Часовой пояс обновлен.',
       life: 2600
     })
   } catch (error) {
     selectedTimeZone.value = findTimeZone(props.settings.timeZone ?? props.settings.defaultTimeZone)
     toast.add({
       severity: 'error',
-      summary: t('toasts.error'),
+      summary: 'Ошибка',
       detail: getErrorMessage(error),
       life: 4000
     })
@@ -117,10 +115,10 @@ function findTimeZone(value: string | null): TimeZoneOption | null {
     <div class="mb-3.5 flex items-start justify-between gap-3">
       <div>
         <h2 class="text-md font-bold">
-          {{ t('sections.timeZone.title') }}
+          Часовой пояс
         </h2>
         <p class="mt-2 text-xs text-secondary">
-          {{ t('sections.timeZone.description') }}
+          Используется для распознавания сроков в задачах.
         </p>
       </div>
     </div>
@@ -134,7 +132,7 @@ function findTimeZone(value: string | null): TimeZoneOption | null {
         option-label="name"
         dropdown
         force-selection
-        :placeholder="t('sections.timeZone.placeholder')"
+        placeholder="Найти город или IANA timezone"
         @complete="searchTimeZones"
         @option-select="handleTimeZoneSelect">
         <template #option="slotProps">
@@ -149,11 +147,11 @@ function findTimeZone(value: string | null): TimeZoneOption | null {
         </template>
       </AutoComplete>
       <Button
-        v-tooltip.bottom="t('sections.timeZone.autoDetect')"
+        v-tooltip.bottom="'Определить автоматически'"
         class="shrink-0"
         icon="pi pi-compass"
         severity="secondary"
-        :aria-label="t('sections.timeZone.autoDetect')"
+        aria-label="Определить автоматически"
         :loading="isSavingSettings"
         @click="detectTimeZone" />
     </div>

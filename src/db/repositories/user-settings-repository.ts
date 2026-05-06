@@ -1,6 +1,5 @@
 import { DbClient } from '../client.js'
 import { TIME_ZONE_SETTING_KEY } from '../../settings/time-zone.js'
-import { LOCALE_SETTING_KEY } from '../../shared/i18n/index.js'
 import type { UserSetting, UserSettings } from './types.js'
 
 type UserSettingsRow = {
@@ -67,18 +66,6 @@ export class UserSettingsRepository {
       telegramUserId: params.telegramUserId,
       key: TIME_ZONE_SETTING_KEY,
       value: params.timeZone
-    })
-  }
-
-  public async findLocale(telegramUserId: number): Promise<string | null> {
-    return this.findValue(telegramUserId, LOCALE_SETTING_KEY)
-  }
-
-  public async upsertLocale(params: { telegramUserId: number; locale: string | null }): Promise<void> {
-    await this.upsertValue({
-      telegramUserId: params.telegramUserId,
-      key: LOCALE_SETTING_KEY,
-      value: params.locale
     })
   }
 }

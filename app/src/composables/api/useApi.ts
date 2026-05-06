@@ -1,5 +1,4 @@
 import { useTelegramApp } from '../useTelegramApp'
-import { appT } from '../../i18n'
 
 type ApiOptions = Omit<RequestInit, 'body' | 'method'> & {
   body?: unknown;
@@ -31,9 +30,8 @@ export function useApi() {
     })
     const payload = (await response.json()) as ApiEnvelope & T
 
-    // todo appT заменить
     if (!response.ok || payload.ok === false) {
-      throw new Error(payload.message || appT('requestFailed'))
+      throw new Error(payload.message || 'Запрос не выполнен.')
     }
 
     return payload

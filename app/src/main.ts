@@ -9,13 +9,11 @@ import AutoComplete from 'primevue/autocomplete'
 import Button from 'primevue/button'
 import ConfirmDialog from 'primevue/confirmdialog'
 import Message from 'primevue/message'
-import Select from 'primevue/select'
 import Toast from 'primevue/toast'
 import Tooltip from 'primevue/tooltip'
 import 'primeicons/primeicons.css'
 
 import App from './App.vue'
-import { appI18n } from './i18n'
 import './styles.css'
 
 const primitiveColors = {
@@ -187,13 +185,11 @@ app.use(PrimeVue, {
 })
 app.use(ToastService)
 app.use(ConfirmationService)
-app.use(appI18n)
 app.component('AutoComplete', AutoComplete)
 app.component('Badge', Badge)
 app.component('Button', Button)
 app.component('ConfirmDialog', ConfirmDialog)
 app.component('Message', Message)
-app.component('Select', Select)
 app.component('Toast', Toast)
 app.directive('tooltip', Tooltip)
 

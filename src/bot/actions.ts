@@ -1,61 +1,58 @@
-import { botButtons, type BotButtonLabelKey } from '../i18n/index.js'
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type SupportedLocale } from '../shared/i18n/index.js'
+export const BOT_BUTTON_LABELS = {
+  connectTrello: 'Подключить Trello',
+  statusTrello: 'Статус Trello',
+  disconnectTrello: 'Выйти из Trello',
+  createTask: 'Создать задачу',
+  cancel: 'Отмена',
+  inlineCancel: '❌ Отмена',
+  changeBoard: '↩️ Поменять доску',
+  useLastSelection: 'Создать тут',
+  openCard: 'Открыть карточку'
+} as const
 
 type BotActionConfig = {
   commands?: readonly string[];
-  buttonLabelKeys?: readonly BotButtonLabelKey[];
+  buttonLabels?: readonly string[];
 };
 
 const ACTION_CONFIG = {
   trello_connect: {
     commands: ['/trello_connect', '/connect_trello'],
-    buttonLabelKeys: ['connectTrello']
+    buttonLabels: [BOT_BUTTON_LABELS.connectTrello]
   },
   trello_status: {
     commands: ['/trello_status'],
-    buttonLabelKeys: ['statusTrello']
+    buttonLabels: [BOT_BUTTON_LABELS.statusTrello]
   },
   trello_disconnect: {
     commands: ['/trello_disconnect'],
-    buttonLabelKeys: ['disconnectTrello']
+    buttonLabels: [BOT_BUTTON_LABELS.disconnectTrello]
   },
   create_task: {
     commands: ['/create_task'],
-    buttonLabelKeys: ['createTask']
+    buttonLabels: [BOT_BUTTON_LABELS.createTask]
   },
   cancel: {
     commands: ['/cancel'],
-    buttonLabelKeys: ['cancel']
+    buttonLabels: [BOT_BUTTON_LABELS.cancel]
   }
 } as const satisfies Record<string, BotActionConfig>
 
 export type BotActionId = keyof typeof ACTION_CONFIG;
 
-const actionByCommand = new Map<string, BotActionId>()
-const actionByLocaleLabel = new Map<SupportedLocale, Map<string, BotActionId>>()
+const actionByTrigger = new Map<string, BotActionId>()
 
 for (const [actionId, config] of Object.entries(ACTION_CONFIG) as [BotActionId, BotActionConfig][]) {
   for (const trigger of config.commands ?? []) {
-    actionByCommand.set(normalizeTrigger(trigger), actionId)
+    actionByTrigger.set(normalizeTrigger(trigger), actionId)
+  }
+  for (const trigger of config.buttonLabels ?? []) {
+    actionByTrigger.set(normalizeTrigger(trigger), actionId)
   }
 }
 
-for (const locale of SUPPORTED_LOCALES) {
-  const labels = botButtons(locale)
-  const actionByLabel = new Map<string, BotActionId>()
-
-  for (const [actionId, config] of Object.entries(ACTION_CONFIG) as [BotActionId, BotActionConfig][]) {
-    for (const labelKey of config.buttonLabelKeys ?? []) {
-      actionByLabel.set(normalizeTrigger(labels[labelKey]), actionId)
-    }
-  }
-
-  actionByLocaleLabel.set(locale, actionByLabel)
-}
-
-export function resolveBotAction(text: string, locale: SupportedLocale = DEFAULT_LOCALE): BotActionId | null {
-  const trigger = normalizeTrigger(text)
-  return actionByCommand.get(trigger) ?? actionByLocaleLabel.get(locale)?.get(trigger) ?? null
+export function resolveBotAction(text: string): BotActionId | null {
+  return actionByTrigger.get(normalizeTrigger(text)) ?? null
 }
 
 function normalizeTrigger(value: string): string {

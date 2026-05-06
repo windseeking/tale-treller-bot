@@ -9,8 +9,6 @@
 - Vue 3 + Vite + PrimeVue 4 + Tailwind CSS (Telegram App)
 - Zod (validation)
 - Pino (logging)
-- i18n-node for backend/bot localization
-- vue-i18n 11 for Telegram App localization
 
 ## Runtime Topology
 Single Node.js process runs:
@@ -51,26 +49,16 @@ In `NODE_ENV=development`, the HTTP server serves the Telegram App through Vite 
 ### `src/settings/*`
 - timezone validation and current-offset date-time helpers;
 - static App timezone names constants;
-- App timezone and locale persistence helpers.
-
-### `src/shared/i18n/*`
-- browser-safe supported locale constants and locale resolver.
-
-### `src/i18n/*`
-- backend/bot English/Russian JSON catalogs;
-- i18n-node configuration and translation helpers;
-- reply keyboard label source for localized action resolution.
+- App timezone persistence helpers.
 
 ### `app/*`
 - Vue 3 + Vite Telegram App frontend;
 - composable API layer under `app/src/composables/api`;
 - infrastructure composables for Telegram initialization and bootstrap loading;
 - stateful settings section components for independently growing settings UI;
-- Vue i18n setup and App-only English/Russian JSON catalogs under `app/src/i18n`;
 - PrimeVue 4 components and Aura-based custom theme;
 - Tailwind CSS utility classes for App layout and custom surface styling;
 - timezone selector, browser timezone detection, Trello status/actions.
-- locale selector, timezone selector, browser timezone detection, Trello status/actions.
 
 ### `src/security/crypto.ts`
 - AES-256-GCM encrypt/decrypt helpers;
@@ -147,7 +135,6 @@ In `NODE_ENV=development`, the HTTP server serves the Telegram App through Vite 
 
 Known `user_settings.setting_key` values:
 - `time_zone`: IANA timezone ID.
-- `locale`: supported locale code (`en` / `ru`).
 
 ## Configuration Source
 Environment variables validated in `src/config/env.ts`:
@@ -175,7 +162,6 @@ Environment variables validated in `src/config/env.ts`:
 - Telegram App build: `npm run build:app`
 - Full build: `npm run build`
 - App build output: `dist/public/app`
-- Backend i18n JSON catalogs are copied to `dist/i18n/locales`.
 - Development App serving: `npm run dev` serves `/app` through Vite middleware; no App rebuild is required for frontend-only changes.
 
 ## Security Notes

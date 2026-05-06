@@ -11,7 +11,7 @@
     "build": "npm run build:server && npm run build:app",
     "build:server": "tsc -p tsconfig.json && npm run copy:assets",
     "build:app": "vue-tsc --project app/tsconfig.json --noEmit && vite build --config app/vite.config.ts",
-    "copy:assets": "mkdir -p dist/llm/prompts dist/i18n/locales && cp src/llm/prompts/*.md dist/llm/prompts/ && cp src/i18n/locales/*.json dist/i18n/locales/",
+    "copy:assets": "mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
     "lint": "eslint . --fix",
     "start": "node dist/index.js",
     "test:init-data": "node --import tsx --test tests/**/*.test.ts",
@@ -24,7 +24,6 @@
     "@primeuix/themes": "^2.0.3",
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
-    "i18n": "^0.15.3",
     "pg": "^8.19.0",
     "pino": "^9.9.0",
     "primeicons": "^7.0.0",
@@ -32,7 +31,6 @@
     "tailwindcss-primeui": "^0.6.1",
     "telegraf": "^4.16.3",
     "vue": "^3.5.33",
-    "vue-i18n": "^11.4.0",
     "zod": "^4.1.5"
   },
   "devDependencies": {

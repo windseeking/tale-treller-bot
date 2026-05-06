@@ -13,7 +13,6 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 - In-memory draft/session state for chat UX.
 - Persistent PostgreSQL storage for Trello authorization state.
 - Persistent PostgreSQL storage for user settings.
-- English/Russian localization for the bot and Telegram App with separate runtime catalogs.
 
 ## Core Features
 1. Draft accumulation from multiple messages.
@@ -26,7 +25,6 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 8. Trello OAuth connect/reconnect per Telegram user.
 9. Trello disconnect control in reply keyboard and status check via command.
 10. Telegram App settings surface with timezone setup and Trello status/actions.
-11. User locale setup with English and Russian support.
 
 ## UX Principles
 - No noisy bot responses while draft is being collected.
@@ -36,17 +34,12 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 - If user is connected to Trello, the reply keyboard shows `Create task`, `Cancel`, and `Disconnect Trello`.
 - If Trello is missing/revoked/expired, flow stops safely and draft text is preserved.
 - If timezone is not configured, task creation continues with `APP_TIMEZONE`.
-- If locale is not configured, the bot initializes it from Telegram language settings or falls back to English.
 - Error responses must include enough debug context.
 
 ## User Settings Policy
 - User settings are stored as per-user key/value records.
 - Timezone is stored under `time_zone` as an internal IANA timezone ID.
-- Locale is stored under `locale` as a supported locale code (`en` or `ru`).
-- English (`en`) is the default locale.
-- Telegram `language_code` is used only to initialize an empty locale setting during `/start`; later user changes are not overwritten.
 - The bot does not expose timezone selection in Telegram chat; users configure settings in the Telegram App.
-- The bot does not expose locale selection in Telegram chat; users configure locale in the Telegram App.
 - The bot may prefill timezone from Trello prefs, browser detection, or manual selection.
 - Manual timezone selection in the App uses a searchable list of IANA timezone names with current UTC offset labels and saves immediately on selection.
 - LLM card generation receives the current date-time with the computed current UTC offset in the prompt.
@@ -59,7 +52,6 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 - App API endpoints validate Telegram Mini App `initData` from the `X-Telegram-Init-Data` request header.
 - App launch does not use one-time `sid`/`secret` sessions.
 - The App can show Trello connection status, create a Trello connect link, and disconnect Trello.
-- The App can show and update the user's locale with a non-searchable language selector.
 
 ## Visual Design Palette
 - `#1555BD` — Blue, primary.

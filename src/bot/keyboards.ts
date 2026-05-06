@@ -1,77 +1,69 @@
 import type { TrelloBoard, TrelloList } from '../trello/types.js'
-import { botButtons } from '../i18n/index.js'
-import type { SupportedLocale } from '../shared/i18n/index.js'
+import { BOT_BUTTON_LABELS } from './actions.js'
 
-function cancelButton(locale: SupportedLocale) {
-  return [{ text: botButtons(locale).inlineCancel, callback_data: 'action:cancel' }]
-}
+const CANCEL_BUTTON = [{ text: BOT_BUTTON_LABELS.inlineCancel, callback_data: 'action:cancel' }]
+const CHANGE_BOARD_BUTTON = [{ text: BOT_BUTTON_LABELS.changeBoard, callback_data: 'action:change_board' }]
 
-function changeBoardButton(locale: SupportedLocale) {
-  return [{ text: botButtons(locale).changeBoard, callback_data: 'action:change_board' }]
-}
-
-export function boardsKeyboard(boards: TrelloBoard[], locale: SupportedLocale) {
+export function boardsKeyboard(boards: TrelloBoard[]) {
   return {
     inline_keyboard: [
       ...boards.map((board) => [{ text: board.name, callback_data: `board:${board.id}` }]),
-      cancelButton(locale)
+      CANCEL_BUTTON
     ]
   }
 }
 
-export function listsKeyboard(lists: TrelloList[], locale: SupportedLocale) {
+export function listsKeyboard(lists: TrelloList[]) {
   return {
     inline_keyboard: [
       ...lists.map((list) => [{ text: list.name, callback_data: `list:${list.id}` }]),
-      changeBoardButton(locale),
-      cancelButton(locale)
+      CHANGE_BOARD_BUTTON,
+      CANCEL_BUTTON
     ]
   }
 }
 
-export function cancelKeyboard(locale: SupportedLocale) {
+export function cancelKeyboard() {
   return {
-    inline_keyboard: [cancelButton(locale)]
+    inline_keyboard: [CANCEL_BUTTON]
   }
 }
 
-export function reuseSelectionKeyboard(locale: SupportedLocale) {
+export function reuseSelectionKeyboard() {
   return {
     inline_keyboard: [
-      [{ text: botButtons(locale).useLastSelection, callback_data: 'action:use_last_selection' }],
-      changeBoardButton(locale),
-      cancelButton(locale)
+      [{ text: BOT_BUTTON_LABELS.useLastSelection, callback_data: 'action:use_last_selection' }],
+      CHANGE_BOARD_BUTTON,
+      CANCEL_BUTTON
     ]
   }
 }
 
-export function cardCreatedKeyboard(cardUrl: string, locale: SupportedLocale) {
+export function cardCreatedKeyboard(cardUrl: string) {
   return {
-    inline_keyboard: [[{ text: botButtons(locale).openCard, url: cardUrl }]]
+    inline_keyboard: [[{ text: BOT_BUTTON_LABELS.openCard, url: cardUrl }]]
   }
 }
 
-export function trelloConnectKeyboard(url: string, locale: SupportedLocale) {
+export function trelloConnectKeyboard(url: string) {
   return {
-    inline_keyboard: [[{ text: botButtons(locale).connectTrello, url }]]
+    inline_keyboard: [[{ text: BOT_BUTTON_LABELS.connectTrello, url }]]
   }
 }
 
-export function unauthorizedReplyKeyboard(locale: SupportedLocale) {
+export function unauthorizedReplyKeyboard() {
   return {
-    keyboard: [[{ text: botButtons(locale).connectTrello }]],
+    keyboard: [[{ text: BOT_BUTTON_LABELS.connectTrello }]],
     resize_keyboard: true,
     one_time_keyboard: true
   }
 }
 
-export function authorizedReplyKeyboard(locale: SupportedLocale) {
-  const labels = botButtons(locale)
-
+export function authorizedReplyKeyboard() {
   return {
     keyboard: [
-      [{ text: labels.createTask }, { text: labels.cancel }],
-      [{ text: labels.disconnectTrello }]
+      [{ text: BOT_BUTTON_LABELS.createTask }, { text: BOT_BUTTON_LABELS.cancel }],
+      [{ text: BOT_BUTTON_LABELS.disconnectTrello }]
     ],
     resize_keyboard: true,
     one_time_keyboard: true

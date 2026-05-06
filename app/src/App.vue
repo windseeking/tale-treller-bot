@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useAppBootstrap } from './composables/useAppBootstrap'
-import LocaleSection from './components/settings/LocaleSection.vue'
 import TimeZoneSection from './components/settings/TimeZoneSection.vue'
 import TrelloSection from './components/settings/TrelloSection.vue'
 
-const { t } = useI18n()
 const { settings, trello, timeZones, fatalMessage, isLoading, load } = useAppBootstrap()
 
 onMounted(load)
@@ -23,12 +20,12 @@ onMounted(load)
           Tale Treller
         </p>
         <h1 class="text-2xl font-bold">
-          {{ t('title') }}
+          Настройки
         </h1>
       </hgroup>
       <div class="shrink-0">
         <Badge :severity="trello.connected ? 'success' : 'warn'">
-          {{ trello.connected ? t('trelloConnectedBadge') : t('trelloNotConnectedBadge') }}
+          {{ trello.connected ? 'Trello подключен' : 'Trello не подключен' }}
         </Badge>
       </div>
     </section>
@@ -41,7 +38,7 @@ onMounted(load)
     <Message
       v-else-if="isLoading"
       severity="info">
-      {{ t('loadingSettings') }}
+      Загружаю настройки...
     </Message>
 
     <div
@@ -49,16 +46,13 @@ onMounted(load)
       class="flex flex-col gap-3.5"
       :class="{ 'flex-col-reverse': !trello.connected }">
       <div class="flex flex-col gap-3.5">
-        <LocaleSection v-model:settings="settings" />
-
         <TimeZoneSection
-            v-model:settings="settings"
-            :time-zones="timeZones" />
+          v-model:settings="settings"
+          :time-zones="timeZones" />
       </div>
 
       <TrelloSection
-        v-model:trello="trello"
-        :locale="settings.locale" />
+        v-model:trello="trello" />
     </div>
   </main>
 </template>

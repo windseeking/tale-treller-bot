@@ -33,7 +33,6 @@ test('protected App API resolves user from signed Telegram initData', async () =
       ok: boolean;
       user: { telegramUserId: number; telegramChatId: number };
       trello: { connected: boolean; username: string | null };
-      settings: { locale: string; defaultLocale: string; localeOptions: Array<{ value: string; label: string }> };
     }
 
     assert.equal(response.status, 200)
@@ -43,57 +42,6 @@ test('protected App API resolves user from signed Telegram initData', async () =
     assert.deepEqual(saves, [{ telegramUserId: 4242, telegramChatId: 4242 }])
     assert.equal(payload.trello.connected, true)
     assert.equal(payload.trello.username, 'ada-trello')
-    assert.equal(payload.settings.locale, 'en')
-    assert.equal(payload.settings.defaultLocale, 'en')
-    assert.deepEqual(payload.settings.localeOptions.map((option) => option.value), ['en', 'ru'])
-  } finally {
-    await stop()
-  }
-})
-
-test('locale save uses user from signed Telegram initData', async () => {
-  const { baseUrl, stop, savedLocales } = await startTestServer()
-  const initData = createSignedInitData({
-    authDate: Math.floor(Date.now() / 1000),
-    user: { id: 7171 }
-  })
-
-  try {
-    const response = await fetch(`${baseUrl}/api/app/settings`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Telegram-Init-Data': initData
-      },
-      body: JSON.stringify({ locale: 'ru' })
-    })
-
-    assert.equal(response.status, 200)
-    assert.deepEqual(savedLocales, [{ telegramUserId: 7171, locale: 'ru' }])
-  } finally {
-    await stop()
-  }
-})
-
-test('locale save rejects unsupported locale', async () => {
-  const { baseUrl, stop, savedLocales } = await startTestServer()
-  const initData = createSignedInitData({
-    authDate: Math.floor(Date.now() / 1000),
-    user: { id: 8181 }
-  })
-
-  try {
-    const response = await fetch(`${baseUrl}/api/app/settings`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Telegram-Init-Data': initData
-      },
-      body: JSON.stringify({ locale: 'de' })
-    })
-
-    assert.equal(response.status, 400)
-    assert.deepEqual(savedLocales, [])
   } finally {
     await stop()
   }
@@ -164,7 +112,6 @@ async function startTestServer() {
   const { createHttpServer } = await import('../../src/http/server.ts')
   const saves: Array<{ telegramUserId: number; telegramChatId: number }> = []
   const savedTimeZones: Array<{ telegramUserId: number; timeZone: string }> = []
-  const savedLocales: Array<{ telegramUserId: number; locale: string }> = []
   const revokedUsers: number[] = []
   const telegramUsersRepository = {
     findByTelegramUserId: async () => null,
@@ -174,13 +121,8 @@ async function startTestServer() {
   }
   const settingsService = {
     findTimeZone: async () => 'Europe/Lisbon',
-    findLocale: async () => 'en',
-    resolveLocale: async () => 'en',
     saveTimeZone: async (params: { telegramUserId: number; timeZone: string }) => {
       savedTimeZones.push(params)
-    },
-    saveLocale: async (params: { telegramUserId: number; locale: string }) => {
-      savedLocales.push(params)
     }
   }
   const authService = {
@@ -208,7 +150,6 @@ async function startTestServer() {
     baseUrl: `http://127.0.0.1:${TEST_PORT}`,
     saves,
     savedTimeZones,
-    savedLocales,
     revokedUsers,
     stop: server.stop
   }

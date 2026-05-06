@@ -2,8 +2,6 @@
 import { computed, ref } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import type { SupportedLocale } from '@shared/i18n'
-import { useI18n } from 'vue-i18n'
 
 import { useTrelloApi } from '../../composables/api/useTrelloApi'
 import type { TrelloPayload } from '../../types/app'
@@ -12,7 +10,6 @@ import { getErrorMessage } from '../../utils/errors'
 
 const props = defineProps<{
   trello: TrelloPayload;
-  locale: SupportedLocale;
 }>()
 
 const emit = defineEmits<{
@@ -21,7 +18,6 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const confirm = useConfirm()
-const { t } = useI18n()
 const { createConnectLink, disconnect } = useTrelloApi()
 
 const isCreatingConnectLink = ref(false)
@@ -29,15 +25,15 @@ const isDisconnecting = ref(false)
 
 const trelloSummary = computed(() => {
   if (props.trello.connected) {
-    const expires = props.trello.expiresAt ? formatDateTime(props.trello.expiresAt, props.locale) : t('sections.trello.unknownExpiry')
-    return t('sections.trello.connectedSummary', { username: props.trello.username ?? 'unknown', expiresAt: expires })
+    const expires = props.trello.expiresAt ? formatDateTime(props.trello.expiresAt) : 'срок неизвестен'
+    return `@${props.trello.username ?? 'unknown'}, действует до ${expires}.`
   }
 
   if (props.trello.expired) {
-    return t('sections.trello.expiredSummary')
+    return 'Подключение истекло, нужно переподключить аккаунт.'
   }
 
-  return t('sections.trello.disconnectedSummary')
+  return 'Подключите Trello, чтобы создавать карточки.'
 })
 
 async function openTrelloConnect(): Promise<void> {
@@ -49,7 +45,7 @@ async function openTrelloConnect(): Promise<void> {
   } catch (error) {
     toast.add({
       severity: 'error',
-      summary: t('toasts.error'),
+      summary: 'Ошибка',
       detail: getErrorMessage(error),
       life: 4000
     })
@@ -60,12 +56,12 @@ async function openTrelloConnect(): Promise<void> {
 
 function confirmDisconnect(): void {
   confirm.require({
-    message: t('sections.trello.confirmDisconnectMessage'),
-    header: t('sections.trello.confirmDisconnectHeader'),
+    message: 'Отключить Trello для этого Telegram-пользователя?',
+    header: 'Отключить Trello',
     icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('sections.trello.disconnect'),
+    acceptLabel: 'Отключить',
     acceptClass: 'p-button-danger',
-    rejectLabel: t('common.cancel'),
+    rejectLabel: 'Отмена',
     rejectClass: 'p-button-secondary',
     accept: disconnectTrello
   })
@@ -79,14 +75,14 @@ async function disconnectTrello(): Promise<void> {
     emit('update:trello', payload.trello)
     toast.add({
       severity: 'success',
-      summary: t('toasts.done'),
-      detail: t('toasts.trelloDisconnected'),
+      summary: 'Готово',
+      detail: 'Trello отключен.',
       life: 2600
     })
   } catch (error) {
     toast.add({
       severity: 'error',
-      summary: t('toasts.error'),
+      summary: 'Ошибка',
       detail: getErrorMessage(error),
       life: 4000
     })
@@ -111,13 +107,13 @@ async function disconnectTrello(): Promise<void> {
 
     <div class="flex w-full flex-col gap-2.5">
       <Button
-        :label="trello.connected ? t('sections.trello.reconnect') : t('sections.trello.connect')"
+        :label="trello.connected ? 'Переподключить Trello' : 'Подключить Trello'"
         icon="pi pi-external-link"
         :loading="isCreatingConnectLink"
         @click="openTrelloConnect" />
       <Button
         v-if="trello.connected || trello.username"
-        :label="t('sections.trello.disconnect')"
+        label="Отключить"
         icon="pi pi-times"
         severity="danger"
         outlined

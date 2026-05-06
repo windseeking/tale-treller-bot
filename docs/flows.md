@@ -4,43 +4,42 @@
 
 1. User sends `/start`.
 2. Bot ensures this Telegram user exists in storage.
-3. If this Telegram user has no saved `locale`, bot saves `locale` from Telegram `language_code` when supported (`en`/`ru`) or falls back to `en`.
-4. Bot checks active Trello connection for this Telegram user.
-5. If Trello is connected, bot sends localized task-creation welcome message and reply keyboard:
-   - `Create task`
-   - `Cancel`
-   - `Disconnect Trello`
-6. If Trello is not connected/revoked/expired, bot sends localized connect-required welcome message (with safety note) and reply keyboard:
-   - `Connect Trello`
-7. User sends one or more text messages (bot silently accumulates draft).
-8. User presses `Create task`.
-9. Bot validates draft:
+3. Bot checks active Trello connection for this Telegram user.
+4. If Trello is connected, bot sends task-creation welcome message and reply keyboard:
+   - `Создать задачу`
+   - `Отмена`
+   - `Выйти из Trello`
+5. If Trello is not connected/revoked/expired, bot sends connect-required welcome message (with safety note) and reply keyboard:
+   - `Подключить Trello`
+6. User sends one or more text messages (bot silently accumulates draft).
+7. User presses `Создать задачу`.
+8. Bot validates draft:
    - empty -> `draftEmpty`;
    - < 15 chars -> `tooShort`;
    - otherwise continue.
-10. Bot checks active Trello connection for this Telegram user:
+9. Bot checks active Trello connection for this Telegram user:
    - no connection/revoked/expired -> send connect CTA with inline button and stop flow;
    - active -> continue.
-11. If `lastBoard/lastList` exists, bot offers localized inline options:
-   - `Create here`
-   - `↩️ Change board`
+10. If `lastBoard/lastList` exists, bot offers inline options:
+   - `Создать тут`
+   - `↩️ Поменять доску`
    - `❌ Cancel`
-12. If `Create here`, bot goes directly to LLM + Trello card creation.
-13. If `↩️ Change board` (or no last selection), bot shows boards list.
-14. User selects board:
-    - selection message is edited to localized `Board: ...` / `Доска: ...`.
-15. Bot shows lists of selected board.
-16. User selects list:
-    - selection message is edited to localized `List: ...` / `Колонка: ...`.
-17. Bot sends localized `cardInProgress`.
-18. Bot:
+11. If `Создать тут`, bot goes directly to LLM + Trello card creation.
+12. If `↩️ Поменять доску` (or no last selection), bot shows boards list.
+13. User selects board:
+    - selection message is edited to `Доска: ...`.
+14. Bot shows lists of selected board.
+15. User selects list:
+    - selection message is edited to `Колонка: ...`.
+16. Bot sends card creation progress message.
+17. Bot:
     - resolves user timezone from settings or `APP_TIMEZONE`;
     - computes current date-time with the timezone's current UTC offset;
     - generates card payload via LLM using that current date-time;
     - appends signature to `desc`;
     - creates card in Trello using user credentials.
-19. `cardInProgress` is edited to localized `cardCreated` + `Open card` button.
-20. Bot clears current task, stores last selection, restores authorized reply keyboard.
+18. Progress message is edited to created-card message + `Открыть карточку` button.
+19. Bot clears current task, stores last selection, restores authorized reply keyboard.
 
 ## 2. Trello Authorization Flows
 
@@ -51,7 +50,7 @@
 4. User completes Trello OAuth page.
 5. Callback stores encrypted token and tries to save timezone from Trello prefs if Trello returns a valid IANA timezone.
 6. Callback marks connection active.
-7. Bot optionally sends localized success notification.
+7. Bot optionally sends success notification.
 8. If no timezone is saved, bot sends a setup prompt explaining that timezone is needed for task deadlines.
 
 ### 2.2 Status
@@ -85,15 +84,7 @@
 6. When user selects a timezone manually from the list, App saves it immediately.
 7. Backend validates the selected timezone and stores the IANA ID in `user_settings.time_zone`.
 
-### 3.3 Set Locale
-1. App loads current locale and locale options from `GET /api/app/me`.
-2. App shows a non-searchable PrimeVue `Select` with English and Russian options.
-3. When user selects a locale, App saves it immediately through `PATCH /api/app/settings`.
-4. Backend validates the selected locale and stores the locale code in `user_settings.locale`.
-5. App updates the current settings payload and immediately re-renders in the selected locale.
-6. Bot messages use the backend bot catalog; App labels/toasts use the App catalog for the same saved locale.
-
-### 3.4 Trello Status and Actions
+### 3.3 Trello Status and Actions
 1. App shows Trello connection status from `/api/app/trello/status`.
 2. If Trello is missing or expired, user can request a connect link.
 3. App opens the existing OAuth flow URL.
@@ -121,5 +112,4 @@
 5. Auth-required interruption preserves user draft messages.
 6. Replayed/expired auth link returns safe HTML error page.
 7. Missing/invalid timezone falls back to `APP_TIMEZONE`.
-8. Missing/invalid locale falls back to `en`.
-9. Missing/invalid/expired Telegram App `initData` is rejected safely.
+8. Missing/invalid/expired Telegram App `initData` is rejected safely.

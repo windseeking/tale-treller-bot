@@ -1,6 +1,4 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { appApiMessages } from '../i18n/index.js'
-import { DEFAULT_LOCALE } from '../shared/i18n/index.js'
 
 const TELEGRAM_WEB_APP_DATA_KEY = 'WebAppData'
 const DEFAULT_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
@@ -23,16 +21,14 @@ export function validateTelegramInitData(params: {
   now?: Date;
   maxAgeSeconds?: number;
 }): ValidateTelegramInitDataResult {
-  const messages = appApiMessages(DEFAULT_LOCALE).initData
-
   if (!params.initData.trim()) {
-    return { ok: false, message: messages.authRequired }
+    return { ok: false, message: 'Требуется авторизация Telegram Mini App.' }
   }
 
   const searchParams = new URLSearchParams(params.initData)
   const receivedHash = searchParams.get('hash')
   if (!receivedHash) {
-    return { ok: false, message: messages.missingHash }
+    return { ok: false, message: 'Telegram initData не содержит подпись.' }
   }
 
   searchParams.delete('hash')
@@ -45,28 +41,28 @@ export function validateTelegramInitData(params: {
   const expectedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
 
   if (!isSafeEqualHex(receivedHash, expectedHash)) {
-    return { ok: false, message: messages.invalidSignature }
+    return { ok: false, message: 'Telegram initData не прошёл проверку подписи.' }
   }
 
   const authDateSeconds = Number(searchParams.get('auth_date'))
   if (!Number.isInteger(authDateSeconds) || authDateSeconds <= 0) {
-    return { ok: false, message: messages.invalidAuthDate }
+    return { ok: false, message: 'Telegram initData не содержит корректную дату авторизации.' }
   }
 
   const now = params.now ?? new Date()
   const maxAgeSeconds = params.maxAgeSeconds ?? DEFAULT_MAX_AGE_SECONDS
   if (authDateSeconds * 1000 < now.getTime() - maxAgeSeconds * 1000) {
-    return { ok: false, message: messages.expired }
+    return { ok: false, message: 'Telegram initData устарел. Откройте приложение из Telegram ещё раз.' }
   }
 
   const userRaw = searchParams.get('user')
   if (!userRaw) {
-    return { ok: false, message: messages.missingUser }
+    return { ok: false, message: 'Telegram initData не содержит пользователя.' }
   }
 
   const user = parseTelegramUser(userRaw)
   if (!user) {
-    return { ok: false, message: messages.invalidUser }
+    return { ok: false, message: 'Telegram initData содержит некорректного пользователя.' }
   }
 
   return { ok: true, user, authDate: new Date(authDateSeconds * 1000) }

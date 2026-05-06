@@ -9,10 +9,9 @@ import { AppError } from '../errors/app-error.js'
 import { normalizeError, toLogPayload } from '../errors/error-handler.js'
 import { logger } from '../logger/logger.js'
 import { decryptString, encryptString, generateOpaqueSecret, hashSecret, isSecretHashMatch } from '../security/crypto.js'
-import { DEFAULT_LOCALE, isSupportedLocale, type SupportedLocale } from '../shared/i18n/index.js'
 import { isValidTimeZone } from '../settings/time-zone.js'
 import { authorizedReplyKeyboard } from '../bot/keyboards.js'
-import { botMessages } from '../bot/messages.js'
+import { BOT_MESSAGES } from '../bot/messages.js'
 import { buildOAuthHeader } from './trello-oauth.js'
 
 const REQUEST_TOKEN_URL = 'https://trello.com/1/OAuthGetRequestToken'
@@ -98,27 +97,24 @@ export class TrelloAuthService {
 
     const session = await this.trelloAuthSessionsRepository.findById(params.sid)
     if (!session) {
-      return { ok: false, reason: botMessages(DEFAULT_LOCALE).authServiceSessionNotFound, statusCode: 404 }
+      return { ok: false, reason: BOT_MESSAGES.authServiceSessionNotFound, statusCode: 404 }
     }
-
-    const locale = await this.resolveUserLocale(session.telegramUserId)
-    const messages = botMessages(locale)
 
     if (session.status !== 'pending') {
       return {
         ok: false,
-        reason: messages.authServiceSessionAlreadyUsed,
+        reason: BOT_MESSAGES.authServiceSessionAlreadyUsed,
         statusCode: 409
       }
     }
 
     if (session.expiresAt.getTime() < Date.now()) {
       await this.trelloAuthSessionsRepository.updateStatus(session.id, 'expired')
-      return { ok: false, reason: messages.authServiceSessionExpired, statusCode: 410 }
+      return { ok: false, reason: BOT_MESSAGES.authServiceSessionExpired, statusCode: 410 }
     }
 
     if (!isSecretHashMatch({ secret: params.secret, hash: session.sessionSecretHash })) {
-      return { ok: false, reason: messages.authServiceSessionSecretInvalid, statusCode: 403 }
+      return { ok: false, reason: BOT_MESSAGES.authServiceSessionSecretInvalid, statusCode: 403 }
     }
 
     const callbackUrl = new URL('/auth/trello/callback', env.APP_BASE_URL)
@@ -195,29 +191,26 @@ export class TrelloAuthService {
 
     const session = await this.trelloAuthSessionsRepository.findById(params.sid)
     if (!session) {
-      return { ok: false, reason: botMessages(DEFAULT_LOCALE).authServiceSessionNotFound }
+      return { ok: false, reason: BOT_MESSAGES.authServiceSessionNotFound }
     }
 
-    const locale = await this.resolveUserLocale(session.telegramUserId)
-    const messages = botMessages(locale)
-
     if (session.status !== 'redirected') {
-      return { ok: false, reason: messages.authServiceSessionStatusInvalid }
+      return { ok: false, reason: BOT_MESSAGES.authServiceSessionStatusInvalid }
     }
 
     if (session.expiresAt.getTime() < Date.now()) {
       await this.trelloAuthSessionsRepository.updateStatus(session.id, 'expired')
-      return { ok: false, reason: messages.authServiceSessionExpired }
+      return { ok: false, reason: BOT_MESSAGES.authServiceSessionExpired }
     }
 
     if (params.denied) {
       await this.trelloAuthSessionsRepository.updateStatus(session.id, 'failed')
-      return { ok: false, reason: messages.authServiceUserDenied }
+      return { ok: false, reason: BOT_MESSAGES.authServiceUserDenied }
     }
 
     if (!params.oauthToken || !params.oauthVerifier) {
       await this.trelloAuthSessionsRepository.updateStatus(session.id, 'failed')
-      return { ok: false, reason: messages.authServiceMissingCallbackParams }
+      return { ok: false, reason: BOT_MESSAGES.authServiceMissingCallbackParams }
     }
 
     const storedRequestToken = session.requestTokenEncrypted
@@ -229,7 +222,7 @@ export class TrelloAuthService {
 
     if (!storedRequestToken || !storedRequestTokenSecret || storedRequestToken !== params.oauthToken) {
       await this.trelloAuthSessionsRepository.updateStatus(session.id, 'failed')
-      return { ok: false, reason: messages.authServiceTokenMismatch }
+      return { ok: false, reason: BOT_MESSAGES.authServiceTokenMismatch }
     }
 
     const authHeader = buildOAuthHeader({
@@ -332,17 +325,15 @@ export class TrelloAuthService {
 
     await this.sendTelegramSuccessNotification({
       telegramUserId: session.telegramUserId,
-      telegramChatId: session.telegramChatId,
-      locale
+      telegramChatId: session.telegramChatId
     })
     if (!timeZone && !existingTimeZone) {
       await this.sendTimeZoneSetupPrompt({
-        telegramChatId: session.telegramChatId,
-        locale
+        telegramChatId: session.telegramChatId
       })
     }
 
-    return { ok: true, reason: messages.authServiceConnected }
+    return { ok: true, reason: BOT_MESSAGES.authServiceConnected }
   }
 
   public async getConnectionStatus(telegramUserId: number): Promise<TrelloConnectionStatusResult> {
@@ -388,7 +379,6 @@ export class TrelloAuthService {
   private async sendTelegramSuccessNotification(params: {
     telegramUserId: number;
     telegramChatId: number;
-    locale: SupportedLocale;
   }): Promise<void> {
     try {
       await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
@@ -398,8 +388,8 @@ export class TrelloAuthService {
         },
         body: JSON.stringify({
           chat_id: params.telegramChatId,
-          text: botMessages(params.locale).authServiceConnectedNotification,
-          reply_markup: authorizedReplyKeyboard(params.locale)
+          text: BOT_MESSAGES.authServiceConnectedNotification,
+          reply_markup: authorizedReplyKeyboard()
         })
       })
     } catch (error) {
@@ -408,7 +398,7 @@ export class TrelloAuthService {
     }
   }
 
-  private async sendTimeZoneSetupPrompt(params: { telegramChatId: number; locale: SupportedLocale }): Promise<void> {
+  private async sendTimeZoneSetupPrompt(params: { telegramChatId: number }): Promise<void> {
     try {
       await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: 'POST',
@@ -417,18 +407,13 @@ export class TrelloAuthService {
         },
         body: JSON.stringify({
           chat_id: params.telegramChatId,
-          text: botMessages(params.locale).timeZoneSetupIntro
+          text: BOT_MESSAGES.timeZoneSetupIntro
         })
       })
     } catch (error) {
       const normalized = normalizeError(error)
       logger.warn(toLogPayload(normalized, { scope: 'telegram', action: 'sendTimeZoneSetupPrompt' }))
     }
-  }
-
-  private async resolveUserLocale(telegramUserId: number): Promise<SupportedLocale> {
-    const locale = await this.userSettingsRepository.findLocale(telegramUserId)
-    return isSupportedLocale(locale) ? locale : DEFAULT_LOCALE
   }
 }
 

@@ -1,5 +1,4 @@
 import { readonly, ref } from 'vue'
-import { appT } from '../i18n'
 
 const telegramInitData = ref('')
 
@@ -12,7 +11,7 @@ export function useTelegramApp() {
     telegramInitData.value = window.Telegram?.WebApp?.initData ?? ''
 
     if (!telegramInitData.value) {
-      return { ok: false, message: appT('openFromTelegram') }
+      return { ok: false, message: 'Откройте приложение из Telegram.' }
     }
 
     return { ok: true }

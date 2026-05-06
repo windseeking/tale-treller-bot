@@ -10,12 +10,6 @@ import { normalizeError, toLogPayload } from '../errors/error-handler.js'
 import { logger } from '../logger/logger.js'
 import { TrelloAuthService } from '../auth/trello-auth-service.js'
 import { SettingsService } from '../settings/settings-service.js'
-import {
-  DEFAULT_LOCALE,
-  isSupportedLocale,
-  type SupportedLocale
-} from '../shared/i18n/index.js'
-import { appApiMessages, botAuthPageMessages } from '../i18n/index.js'
 import { isValidTimeZone, listTimeZoneOptions } from '../settings/time-zone.js'
 import { validateTelegramInitData } from '../security/telegram-init-data.js'
 
@@ -26,13 +20,6 @@ type AppApiContext = {
   telegramUserId: number;
   telegramChatId: number;
 };
-
-function getLocaleOptions() {
-  return [
-    { value: 'en', label: 'English' },
-    { value: 'ru', label: 'Русский' }
-  ]
-}
 
 export function createHttpServer(
   authService: TrelloAuthService,
@@ -65,29 +52,14 @@ export function createHttpServer(
   app.patch('/api/app/settings', async (req, res) => {
     await withAppInitData(req, res, telegramUsersRepository, async (appContext) => {
       const body = typeof req.body === 'object' && req.body !== null ? req.body : {}
-      const currentLocale = await settingsService.resolveLocale(appContext.telegramUserId)
-      const appMessages = appApiMessages(currentLocale)
+      const timeZone = 'timeZone' in body && typeof body.timeZone === 'string' ? body.timeZone : ''
 
-      if ('timeZone' in body) {
-        const timeZone = typeof body.timeZone === 'string' ? body.timeZone : ''
-        if (!isValidTimeZone(timeZone)) {
-          res.status(400).json({ ok: false, message: appMessages.invalidTimeZone })
-          return
-        }
-
-        await settingsService.saveTimeZone({ telegramUserId: appContext.telegramUserId, timeZone })
+      if (!isValidTimeZone(timeZone)) {
+        res.status(400).json({ ok: false, message: 'Некорректный часовой пояс.' })
+        return
       }
 
-      if ('locale' in body) {
-        const locale = typeof body.locale === 'string' ? body.locale : ''
-        if (!isSupportedLocale(locale)) {
-          res.status(400).json({ ok: false, message: appMessages.invalidLocale })
-          return
-        }
-
-        await settingsService.saveLocale({ telegramUserId: appContext.telegramUserId, locale })
-      }
-
+      await settingsService.saveTimeZone({ telegramUserId: appContext.telegramUserId, timeZone })
       res.status(200).json({
         ok: true,
         settings: await buildSettingsPayload(appContext.telegramUserId, settingsService)
@@ -129,16 +101,14 @@ export function createHttpServer(
     const secret = typeof req.query.secret === 'string' ? req.query.secret : ''
 
     if (!sid || !secret) {
-      const authPage = botAuthPageMessages(DEFAULT_LOCALE)
-      res.status(400).send(renderHtml(authPage.genericErrorTitle, authPage.badAuthLink, DEFAULT_LOCALE))
+      res.status(400).send(renderHtml('Ошибка', 'Некорректная ссылка авторизации.'))
       return
     }
 
     try {
       const result = await authService.startAuthRedirect({ sid, secret })
       if (!result.ok) {
-        const authPage = botAuthPageMessages(DEFAULT_LOCALE)
-        res.status(result.statusCode).send(renderHtml(authPage.authErrorTitle, result.reason, DEFAULT_LOCALE))
+        res.status(result.statusCode).send(renderHtml('Ошибка авторизации', result.reason))
         return
       }
 
@@ -146,10 +116,9 @@ export function createHttpServer(
     } catch (error) {
       const normalized = normalizeError(error)
       logger.error(toLogPayload(normalized, { scope: 'http', action: 'authStart' }))
-      const authPage = botAuthPageMessages(DEFAULT_LOCALE)
       res
         .status(500)
-        .send(renderHtml(authPage.genericErrorTitle, authPage.authStartFailed, DEFAULT_LOCALE))
+        .send(renderHtml('Ошибка', 'Не удалось запустить авторизацию Trello. Попробуйте снова из Telegram.'))
     }
   })
 
@@ -161,16 +130,14 @@ export function createHttpServer(
     const denied = typeof req.query.denied === 'string' ? req.query.denied : undefined
 
     if (!sid) {
-      const authPage = botAuthPageMessages(DEFAULT_LOCALE)
-      res.status(400).send(renderHtml(authPage.genericErrorTitle, authPage.missingSessionId, DEFAULT_LOCALE))
+      res.status(400).send(renderHtml('Ошибка', 'Отсутствует идентификатор сессии.'))
       return
     }
 
     try {
       const result = await authService.handleCallback({ sid, oauthToken, oauthVerifier, denied })
       if (!result.ok) {
-        const authPage = botAuthPageMessages(DEFAULT_LOCALE)
-        res.status(400).send(renderHtml(authPage.authIncompleteTitle, result.reason, DEFAULT_LOCALE))
+        res.status(400).send(renderHtml('Подключение не завершено', result.reason))
         return
       }
 
@@ -181,10 +148,9 @@ export function createHttpServer(
     } catch (error) {
       const normalized = normalizeError(error)
       logger.error(toLogPayload(normalized, { scope: 'http', action: 'authCallback' }))
-      const authPage = botAuthPageMessages(DEFAULT_LOCALE)
       const resultUrl = new URL('/auth/trello/result', env.APP_BASE_URL)
       resultUrl.searchParams.set('status', 'error')
-      resultUrl.searchParams.set('message', authPage.callbackFailed)
+      resultUrl.searchParams.set('message', 'Не удалось завершить подключение Trello.')
       res.redirect(302, resultUrl.toString())
     }
   })
@@ -194,11 +160,10 @@ export function createHttpServer(
     const message =
       typeof req.query.message === 'string'
         ? req.query.message
-        : botAuthPageMessages(DEFAULT_LOCALE).fallbackResultMessage
+        : 'Произошла ошибка. Вернитесь в Telegram и повторите попытку.'
 
-    const authPage = botAuthPageMessages(DEFAULT_LOCALE)
-    const title = status === 'success' ? authPage.successTitle : authPage.resultTitle
-    res.status(status === 'success' ? 200 : 400).send(renderHtml(title, message, DEFAULT_LOCALE))
+    const title = status === 'success' ? 'Вы авторизованы в Trello' : 'Подключение Trello'
+    res.status(status === 'success' ? 200 : 400).send(renderHtml(title, message))
   })
 
   return {
@@ -282,11 +247,7 @@ async function configureAppFrontend(app: Express, httpServer: http.Server): Prom
 
       res
         .status(503)
-        .send(renderHtml(
-          botAuthPageMessages(DEFAULT_LOCALE).appUnavailableTitle,
-          botAuthPageMessages(DEFAULT_LOCALE).appNotBuilt,
-          DEFAULT_LOCALE
-        ))
+        .send(renderHtml('Приложение недоступно', 'App еще не собран. Запустите npm run build.'))
     })
   })
 
@@ -305,7 +266,7 @@ async function withAppInitData(
 ): Promise<void> {
   const initData = req.header(TELEGRAM_INIT_DATA_HEADER)
   if (!initData) {
-    res.status(401).json({ ok: false, message: appApiMessages(DEFAULT_LOCALE).openFromTelegram })
+    res.status(401).json({ ok: false, message: 'Откройте приложение из Telegram.' })
     return
   }
 
@@ -330,7 +291,7 @@ async function withAppInitData(
   } catch (error) {
     const normalized = normalizeError(error)
     logger.error(toLogPayload(normalized, { scope: 'http', action: 'appApi' }))
-    res.status(500).json({ ok: false, message: appApiMessages(DEFAULT_LOCALE).genericActionFailed })
+    res.status(500).json({ ok: false, message: 'Не удалось выполнить действие.' })
   }
 }
 
@@ -351,15 +312,11 @@ async function buildAppPayload(params: {
 
 async function buildSettingsPayload(telegramUserId: number, settingsService: SettingsService) {
   const timeZone = await settingsService.findTimeZone(telegramUserId)
-  const locale = await settingsService.resolveLocale(telegramUserId)
 
   return {
     timeZone,
     isDefaultTimeZone: !timeZone,
-    defaultTimeZone: env.APP_TIMEZONE,
-    locale,
-    defaultLocale: DEFAULT_LOCALE,
-    localeOptions: getLocaleOptions()
+    defaultTimeZone: env.APP_TIMEZONE
   }
 }
 
@@ -374,13 +331,12 @@ async function buildTrelloPayload(telegramUserId: number, authService: TrelloAut
   }
 }
 
-function renderHtml(title: string, message: string, locale: SupportedLocale): string {
+function renderHtml(title: string, message: string): string {
   const safeTitle = escapeHtml(title)
   const safeMessage = escapeHtml(message)
-  const safeHint = escapeHtml(botAuthPageMessages(locale).returnHint)
 
   return `<!DOCTYPE html>
-<html lang="${locale}">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -397,7 +353,7 @@ function renderHtml(title: string, message: string, locale: SupportedLocale): st
     <div class="card">
       <h1>${safeTitle}</h1>
       <p>${safeMessage}</p>
-      <p class="hint">${safeHint}</p>
+      <p class="hint">Вернитесь в Telegram-бот и продолжайте работу.</p>
     </div>
   </body>
 </html>`

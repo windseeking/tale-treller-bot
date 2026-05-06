@@ -110,10 +110,3 @@
 **Decision:** Keep `App.vue` as the settings page shell with page-level header/loading/error markup. Keep API access, Telegram initialization, and bootstrap loading in composables. Put single-use timezone and Trello behavior inside their section components.
 
 **Reason:** Vue composables are useful for reusable or infrastructure stateful logic, while single-use feature behavior is easier to trace inside the component that owns the matching visual layout. This keeps future settings additions local without turning `App.vue` into a monolith.
-
----
-
-## D-017: Shared Locale Setting + Separate Runtime I18n Catalogs
-**Decision:** Support `en` and `ru` through one shared locale setting and resolver, but keep separate JSON catalogs for bot/backend (`src/i18n`) and Telegram App (`app/src/i18n`). The bot/backend uses i18n-node; the Telegram App uses vue-i18n 11. Store a single user locale under `user_settings.locale`. Initialize it from Telegram `language_code` only when missing; do not split automatic and manual locale settings.
-
-**Reason:** Bot messages and App UI have different runtime needs and placeholder conventions. Separate catalogs let each side use its native i18n library without browser-bundling backend dependencies, while one locale setting keeps behavior easy to reason about. Telegram language is useful as first-run input but should not overwrite a language the user later chooses in the App.
