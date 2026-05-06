@@ -31,8 +31,8 @@ In `NODE_ENV=development`, the HTTP server serves the Telegram App through Vite 
 - `GET /auth/trello/callback`;
 - `GET /auth/trello/result`.
 - `GET /app`;
-- `POST /api/app/session/exchange`;
 - `GET /api/app/time-zones`;
+- `GET /api/app/me`;
 - `PATCH /api/app/settings`;
 - `GET /api/app/trello/status`;
 - `POST /api/app/trello/connect-link`;
@@ -49,7 +49,6 @@ In `NODE_ENV=development`, the HTTP server serves the Telegram App through Vite 
 ### `src/settings/*`
 - timezone validation and current-offset date-time helpers;
 - static App timezone names constants;
-- one-time App launch sessions;
 - App timezone persistence helpers.
 
 ### `app/*`
@@ -63,14 +62,17 @@ In `NODE_ENV=development`, the HTTP server serves the Telegram App through Vite 
 - one-time secret generation;
 - secret hash/constant-time validation.
 
+### `src/security/telegram-init-data.ts`
+- Telegram Mini App `initData` HMAC validation;
+- `auth_date` freshness validation for App API calls;
+- verified Telegram user extraction.
+
 ### `src/db/*`
 - DB client;
 - migration runner;
 - repositories:
   - `telegram_users`
   - `user_settings`
-  - `settings_update_sessions`
-  - `app_sessions`
   - `trello_connections`
   - `trello_auth_sessions`
 
@@ -104,26 +106,6 @@ In `NODE_ENV=development`, the HTTP server serves the Telegram App through Vite 
 - `setting_value` TEXT nullable
 - `created_at`, `updated_at`
 - unique: `(telegram_user_id, setting_key)`
-
-### `settings_update_sessions`
-- `id` UUID PK
-- `telegram_user_id` BIGINT
-- `telegram_chat_id` BIGINT
-- `purpose` (`time_zone_auto`)
-- `session_secret_hash`
-- `status` (`pending` / `completed` / `failed` / `expired`)
-- `expires_at`
-- `created_at`, `updated_at`
-
-### `app_sessions`
-- `id` UUID PK
-- `telegram_user_id` BIGINT
-- `telegram_chat_id` BIGINT
-- `session_secret_hash`
-- `api_token_hash` nullable
-- `status` (`pending` / `active` / `expired`)
-- `expires_at`
-- `created_at`, `updated_at`
 
 ### `trello_connections`
 - `id` BIGSERIAL PK
@@ -180,5 +162,5 @@ Environment variables validated in `src/config/env.ts`:
 - Token/key materials are encrypted at rest using AES-256-GCM.
 - No plaintext Trello tokens are logged.
 - Auth links are one-time and TTL-bound.
-- App launch links are one-time and exchanged for short-lived bearer tokens.
+- App API calls are authenticated with Telegram Mini App `initData` from `X-Telegram-Init-Data`.
 - Session integrity uses secret hash verification and status transitions.

@@ -20,7 +20,7 @@
    - no plaintext Trello token logging;
    - token/key materials are encrypted at rest;
    - auth session links are one-time and expiring.
-   - App launch links are one-time and App API bearer tokens expire.
+   - App API requests validate Telegram Mini App `initData`.
 9. Key UX invariants remain valid:
    - draft is collected silently;
    - processing starts only on `Создать задачу`;
@@ -40,7 +40,7 @@
 6. `Статус Trello` shows connected/not connected state with expiry.
 7. `Выйти из Trello` blocks Trello operations until reconnect.
 8. Replayed or expired auth link returns safe error page.
-9. `Settings` opens the Telegram App.
+9. Telegram Menu Button opens the Telegram App.
 10. App timezone setup stores a valid IANA timezone ID.
 11. App Trello status/actions reflect connected, expired, and disconnected states.
 12. Card generation uses the saved timezone, or `APP_TIMEZONE` when timezone is missing.

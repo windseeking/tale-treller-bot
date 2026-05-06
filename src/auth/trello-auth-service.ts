@@ -9,9 +9,8 @@ import { AppError } from "../errors/app-error.js";
 import { normalizeError, toLogPayload } from "../errors/error-handler.js";
 import { logger } from "../logger/logger.js";
 import { decryptString, encryptString, generateOpaqueSecret, hashSecret, isSecretHashMatch } from "../security/crypto.js";
-import { SettingsService } from "../settings/settings-service.js";
 import { isValidTimeZone } from "../settings/time-zone.js";
-import { authorizedReplyKeyboard, settingsAppKeyboard } from "../bot/keyboards.js";
+import { authorizedReplyKeyboard } from "../bot/keyboards.js";
 import { BOT_MESSAGES } from "../bot/messages.js";
 import { buildOAuthHeader } from "./trello-oauth.js";
 
@@ -54,8 +53,7 @@ export class TrelloAuthService {
     private readonly telegramUsersRepository: TelegramUsersRepository,
     private readonly trelloConnectionsRepository: TrelloConnectionsRepository,
     private readonly trelloAuthSessionsRepository: TrelloAuthSessionsRepository,
-    private readonly userSettingsRepository: UserSettingsRepository,
-    private readonly settingsService: SettingsService
+    private readonly userSettingsRepository: UserSettingsRepository
   ) {}
 
   public async createAuthorizationLink(params: {
@@ -331,7 +329,6 @@ export class TrelloAuthService {
     });
     if (!timeZone && !existingTimeZone) {
       await this.sendTimeZoneSetupPrompt({
-        telegramUserId: session.telegramUserId,
         telegramChatId: session.telegramChatId
       });
     }
@@ -384,10 +381,6 @@ export class TrelloAuthService {
     telegramChatId: number;
   }): Promise<void> {
     try {
-      const link = await this.settingsService.createAppLaunchLink({
-        telegramUserId: params.telegramUserId,
-        telegramChatId: params.telegramChatId
-      });
       await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: {
@@ -396,7 +389,7 @@ export class TrelloAuthService {
         body: JSON.stringify({
           chat_id: params.telegramChatId,
           text: BOT_MESSAGES.authServiceConnectedNotification,
-          reply_markup: authorizedReplyKeyboard(link.url)
+          reply_markup: authorizedReplyKeyboard()
         })
       });
     } catch (error) {
@@ -405,16 +398,8 @@ export class TrelloAuthService {
     }
   }
 
-  private async sendTimeZoneSetupPrompt(params: {
-    telegramUserId: number;
-    telegramChatId: number;
-  }): Promise<void> {
+  private async sendTimeZoneSetupPrompt(params: { telegramChatId: number }): Promise<void> {
     try {
-      const link = await this.settingsService.createAppLaunchLink({
-        telegramUserId: params.telegramUserId,
-        telegramChatId: params.telegramChatId
-      });
-
       await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: {
@@ -422,8 +407,7 @@ export class TrelloAuthService {
         },
         body: JSON.stringify({
           chat_id: params.telegramChatId,
-          text: BOT_MESSAGES.timeZoneSetupIntro,
-          reply_markup: settingsAppKeyboard(link.url)
+          text: BOT_MESSAGES.timeZoneSetupIntro
         })
       });
     } catch (error) {

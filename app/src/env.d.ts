@@ -8,6 +8,7 @@ declare module "*.vue" {
 }
 
 type TelegramWebApp = {
+  initData: string;
   ready: () => void;
   expand: () => void;
   close: () => void;

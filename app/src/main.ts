@@ -5,12 +5,13 @@ import { definePreset } from "@primeuix/themes";
 import Badge from "primevue/badge";
 import ConfirmationService from "primevue/confirmationservice";
 import ToastService from "primevue/toastservice";
-import Tooltip from "primevue/tooltip";
 import AutoComplete from "primevue/autocomplete";
 import Button from "primevue/button";
 import ConfirmDialog from "primevue/confirmdialog";
 import Message from "primevue/message";
+import Tag from 'primevue/tag';
 import Toast from "primevue/toast";
+import Tooltip from "primevue/tooltip";
 import "primeicons/primeicons.css";
 
 import App from "./App.vue";

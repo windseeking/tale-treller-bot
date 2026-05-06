@@ -8,7 +8,6 @@ import { AppError } from "../errors/app-error.js";
 import { normalizeError } from "../errors/error-handler.js";
 import { LlmClient } from "../llm/llm-client.js";
 import { logger } from "../logger/logger.js";
-import { SettingsService } from "../settings/settings-service.js";
 import { getCurrentDateWithOffset } from "../settings/time-zone.js";
 import type { TrelloAuthContext } from "../trello/types.js";
 import { TrelloClient } from "../trello/trello-client.js";
@@ -21,7 +20,6 @@ import {
   cardCreatedKeyboard,
   listsKeyboard,
   reuseSelectionKeyboard,
-  settingsAppKeyboard,
   trelloConnectKeyboard,
   unauthorizedReplyKeyboard
 } from "./keyboards.js";
@@ -35,7 +33,6 @@ type Dependencies = {
   trelloAuthService: TrelloAuthService;
   telegramUsersRepository: TelegramUsersRepository;
   userSettingsRepository: UserSettingsRepository;
-  settingsService: SettingsService;
 };
 
 type BotSession = ReturnType<SessionStore["get"]>;
@@ -51,8 +48,7 @@ export function createTelegramBot({
   llmClient,
   trelloAuthService,
   telegramUsersRepository,
-  userSettingsRepository,
-  settingsService
+  userSettingsRepository
 }: Dependencies): Telegraf {
   const bot = new Telegraf(telegramToken);
   const sessions = new SessionStore();
@@ -67,12 +63,12 @@ export function createTelegramBot({
     const status = await trelloAuthService.getConnectionStatus(identity.telegramUserId);
     if (status.connected) {
       await replyMarkdown(ctx, BOT_MESSAGES.welcomeAuthorized, {
-        reply_markup: await authorizedReplyKeyboardForIdentity(settingsService, identity)
+        reply_markup: authorizedReplyKeyboardForIdentity()
       });
       return;
     }
     await replyMarkdown(ctx, BOT_MESSAGES.welcomeUnauthorized, {
-      reply_markup: await unauthorizedReplyKeyboardForIdentity(settingsService, identity)
+      reply_markup: unauthorizedReplyKeyboardForIdentity()
     });
   });
 
@@ -83,7 +79,7 @@ export function createTelegramBot({
     }
     sessions.resetTask(identity.chatId);
     await replyMarkdown(ctx, BOT_MESSAGES.canceled, {
-      reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, settingsService, identity)
+      reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, identity)
     });
   });
 
@@ -116,8 +112,6 @@ export function createTelegramBot({
         await sendTrelloStatus({
           ctx,
           trelloAuthService,
-          settingsService,
-          identity,
           telegramUserId: identity.telegramUserId
         });
         return;
@@ -126,16 +120,7 @@ export function createTelegramBot({
       if (action === "trello_disconnect") {
         await trelloAuthService.revokeConnection(identity.telegramUserId);
         await replyMarkdown(ctx, BOT_MESSAGES.authDisconnected, {
-          reply_markup: await unauthorizedReplyKeyboardForIdentity(settingsService, identity)
-        });
-        return;
-      }
-
-      if (action === "settings") {
-        await sendAppLink({
-          ctx,
-          identity,
-          settingsService
+          reply_markup: unauthorizedReplyKeyboardForIdentity()
         });
         return;
       }
@@ -161,7 +146,7 @@ export function createTelegramBot({
         await tryDeleteIncomingMessage(ctx);
         sessions.resetTask(identity.chatId);
         await replyMarkdown(ctx, BOT_MESSAGES.canceled, {
-          reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, settingsService, identity)
+          reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, identity)
         });
         return;
       }
@@ -173,14 +158,14 @@ export function createTelegramBot({
 
         if (session.messages.length === 0) {
           await replyMarkdown(ctx, BOT_MESSAGES.draftEmpty, {
-            reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, settingsService, identity)
+            reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, identity)
           });
           return;
         }
 
         if (!validation.ok) {
           await replyMarkdown(ctx, BOT_MESSAGES.tooShort(validation.currentLength), {
-            reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, settingsService, identity)
+            reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, identity)
           });
           return;
         }
@@ -189,7 +174,6 @@ export function createTelegramBot({
           ctx,
           session,
           trelloAuthService,
-          settingsService,
           identity
         });
         if (!auth) {
@@ -258,13 +242,13 @@ export function createTelegramBot({
       if (data === "action:cancel") {
         sessions.resetTask(identity.chatId);
         await replyMarkdown(ctx, BOT_MESSAGES.canceled, {
-          reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, settingsService, identity)
+          reply_markup: await getMainReplyKeyboardForUser(trelloAuthService, identity)
         });
         return;
       }
 
       if (data === "action:change_board") {
-        const auth = await requireActiveAuth({ ctx, session, trelloAuthService, settingsService, identity });
+        const auth = await requireActiveAuth({ ctx, session, trelloAuthService, identity });
         if (!auth) {
           return;
         }
@@ -283,7 +267,7 @@ export function createTelegramBot({
       }
 
       if (data === "action:use_last_selection") {
-        const auth = await requireActiveAuth({ ctx, session, trelloAuthService, settingsService, identity });
+        const auth = await requireActiveAuth({ ctx, session, trelloAuthService, identity });
         if (!auth) {
           return;
         }
@@ -312,14 +296,13 @@ export function createTelegramBot({
           llmClient,
           auth,
           userSettingsRepository,
-          settingsService,
           telegramUserId: identity.telegramUserId
         });
         return;
       }
 
       if (data.startsWith("board:")) {
-        const auth = await requireActiveAuth({ ctx, session, trelloAuthService, settingsService, identity });
+        const auth = await requireActiveAuth({ ctx, session, trelloAuthService, identity });
         if (!auth) {
           return;
         }
@@ -330,7 +313,7 @@ export function createTelegramBot({
       }
 
       if (data.startsWith("list:")) {
-        const auth = await requireActiveAuth({ ctx, session, trelloAuthService, settingsService, identity });
+        const auth = await requireActiveAuth({ ctx, session, trelloAuthService, identity });
         if (!auth) {
           return;
         }
@@ -344,7 +327,6 @@ export function createTelegramBot({
           llmClient,
           auth,
           userSettingsRepository,
-          settingsService,
           telegramUserId: identity.telegramUserId
         });
         return;
@@ -390,32 +372,15 @@ async function ensureTelegramUser(
   });
 }
 
-async function sendAppLink(params: {
-  ctx: Context;
-  identity: TelegramIdentity;
-  settingsService: SettingsService;
-}): Promise<void> {
-  const link = await params.settingsService.createAppLaunchLink({
-    telegramUserId: params.identity.telegramUserId,
-    telegramChatId: params.identity.chatId
-  });
-
-  await replyMarkdown(params.ctx, BOT_MESSAGES.settingsAppOpen, {
-    reply_markup: settingsAppKeyboard(link.url)
-  });
-}
-
 async function sendTrelloStatus(params: {
   ctx: Context;
   trelloAuthService: TrelloAuthService;
-  settingsService: SettingsService;
-  identity: TelegramIdentity;
   telegramUserId: number;
 }): Promise<void> {
   const status = await params.trelloAuthService.getConnectionStatus(params.telegramUserId);
   if (!status.connected && !status.username) {
     await replyMarkdown(params.ctx, BOT_MESSAGES.authStatusNotConnected, {
-      reply_markup: await unauthorizedReplyKeyboardForIdentity(params.settingsService, params.identity)
+      reply_markup: unauthorizedReplyKeyboardForIdentity()
     });
     return;
   }
@@ -425,13 +390,13 @@ async function sendTrelloStatus(params: {
 
   if (status.expired) {
     await replyMarkdown(params.ctx, BOT_MESSAGES.authStatusExpired(username, expires), {
-      reply_markup: await unauthorizedReplyKeyboardForIdentity(params.settingsService, params.identity)
+      reply_markup: unauthorizedReplyKeyboardForIdentity()
     });
     return;
   }
 
   await replyMarkdown(params.ctx, BOT_MESSAGES.authStatusConnected(username, expires), {
-    reply_markup: await authorizedReplyKeyboardForIdentity(params.settingsService, params.identity)
+    reply_markup: authorizedReplyKeyboardForIdentity()
   });
 }
 
@@ -439,7 +404,6 @@ async function requireActiveAuth(params: {
   ctx: Context;
   session: BotSession;
   trelloAuthService: TrelloAuthService;
-  settingsService: SettingsService;
   identity: TelegramIdentity;
 }): Promise<TrelloAuthContext | null> {
   const auth = await params.trelloAuthService.getActiveAuthContext(params.identity.telegramUserId);
@@ -449,7 +413,7 @@ async function requireActiveAuth(params: {
 
   clearSelectionFlow(params.session);
   await replyMarkdown(params.ctx, BOT_MESSAGES.authRequired, {
-    reply_markup: await unauthorizedReplyKeyboardForIdentity(params.settingsService, params.identity)
+    reply_markup: unauthorizedReplyKeyboardForIdentity()
   });
   await requestTrelloConnection({
     ctx: params.ctx,
@@ -502,10 +466,9 @@ async function onListSelected(params: {
   llmClient: LlmClient;
   auth: TrelloAuthContext;
   userSettingsRepository: UserSettingsRepository;
-  settingsService: SettingsService;
   telegramUserId: number;
 }): Promise<void> {
-  const { listId, session, ctx, trelloClient, llmClient, auth, userSettingsRepository, settingsService, telegramUserId } = params;
+  const { listId, session, ctx, trelloClient, llmClient, auth, userSettingsRepository, telegramUserId } = params;
 
   const selectedList = session.lists.find((list) => list.id === listId);
   if (!selectedList) {
@@ -524,7 +487,6 @@ async function onListSelected(params: {
     llmClient,
     auth,
     userSettingsRepository,
-    settingsService,
     telegramUserId
   });
 }
@@ -536,10 +498,9 @@ async function createCardFromCurrentSelection(params: {
   llmClient: LlmClient;
   auth: TrelloAuthContext;
   userSettingsRepository: UserSettingsRepository;
-  settingsService: SettingsService;
   telegramUserId: number;
 }): Promise<void> {
-  const { session, ctx, trelloClient, llmClient, auth, userSettingsRepository, settingsService, telegramUserId } = params;
+  const { session, ctx, trelloClient, llmClient, auth, userSettingsRepository, telegramUserId } = params;
 
   if (!session.selectedListId || !session.selectedBoardId) {
     throw new AppError({
@@ -581,10 +542,7 @@ async function createCardFromCurrentSelection(params: {
   session.selectedListId = undefined;
   session.selectedListName = undefined;
   await replyMarkdown(ctx, BOT_MESSAGES.readyForNextDraft, {
-    reply_markup: await authorizedReplyKeyboardForIdentity(settingsService, {
-      chatId: ctx.chat?.id ?? 0,
-      telegramUserId
-    })
+    reply_markup: authorizedReplyKeyboardForIdentity()
   });
 }
 
@@ -632,35 +590,18 @@ async function sendBoards(
 
 async function getMainReplyKeyboardForUser(
   trelloAuthService: TrelloAuthService,
-  settingsService: SettingsService,
   identity: TelegramIdentity
 ): Promise<ReturnType<typeof authorizedReplyKeyboard> | ReturnType<typeof unauthorizedReplyKeyboard>> {
   const status = await trelloAuthService.getConnectionStatus(identity.telegramUserId);
-  return status.connected
-    ? authorizedReplyKeyboardForIdentity(settingsService, identity)
-    : unauthorizedReplyKeyboardForIdentity(settingsService, identity);
+  return status.connected ? authorizedReplyKeyboardForIdentity() : unauthorizedReplyKeyboardForIdentity();
 }
 
-async function authorizedReplyKeyboardForIdentity(
-  settingsService: SettingsService,
-  identity: TelegramIdentity
-): Promise<ReturnType<typeof authorizedReplyKeyboard>> {
-  const link = await settingsService.createAppLaunchLink({
-    telegramUserId: identity.telegramUserId,
-    telegramChatId: identity.chatId
-  });
-  return authorizedReplyKeyboard(link.url);
+function authorizedReplyKeyboardForIdentity(): ReturnType<typeof authorizedReplyKeyboard> {
+  return authorizedReplyKeyboard();
 }
 
-async function unauthorizedReplyKeyboardForIdentity(
-  settingsService: SettingsService,
-  identity: TelegramIdentity
-): Promise<ReturnType<typeof unauthorizedReplyKeyboard>> {
-  const link = await settingsService.createAppLaunchLink({
-    telegramUserId: identity.telegramUserId,
-    telegramChatId: identity.chatId
-  });
-  return unauthorizedReplyKeyboard(link.url);
+function unauthorizedReplyKeyboardForIdentity(): ReturnType<typeof unauthorizedReplyKeyboard> {
+  return unauthorizedReplyKeyboard();
 }
 
 function hasLastSelection(session: BotSession): boolean {

@@ -8,11 +8,9 @@
 4. If Trello is connected, bot sends task-creation welcome message and reply keyboard:
    - `Create task`
    - `Cancel`
-   - `Settings` Web App
    - `Disconnect Trello`
 5. If Trello is not connected/revoked/expired, bot sends connect-required welcome message (with safety note) and reply keyboard:
    - `Connect Trello`
-   - `Settings` Web App
 6. User sends one or more text messages (bot silently accumulates draft).
 7. User presses `Create task`.
 8. Bot validates draft:
@@ -65,16 +63,17 @@
 ### 2.3 Disconnect
 1. User presses `Disconnect Trello`.
 2. Bot marks connection as revoked and invalidates pending auth sessions.
-3. Bot confirms disconnect and shows reply keyboard with `Connect Trello` and `Settings` Web App.
+3. Bot confirms disconnect and shows reply keyboard with `Connect Trello`.
 
 ## 3. User Settings App Flows
 
 ### 3.1 Open App
-1. User presses `Settings`.
-2. Telegram opens `/app?sid=...&secret=...` from the reply keyboard Web App button.
-3. App exchanges `sid` and `secret` via `POST /api/app/session/exchange`.
-4. Backend returns a short-lived bearer token plus current settings and Trello status.
-5. Existing draft text is preserved during settings changes.
+1. User opens the standard Telegram Menu Button.
+2. Telegram opens the stable `/app` Mini App URL.
+3. App reads `window.Telegram.WebApp.initData`.
+4. App sends `initData` in `X-Telegram-Init-Data` for protected `/api/app/*` requests.
+5. Backend validates Telegram `initData`, resolves the Telegram user, and returns current settings plus Trello status.
+6. Existing draft text is preserved during settings changes.
 
 ### 3.2 Set Timezone
 1. App loads all IANA timezone options from `GET /api/app/time-zones`.
@@ -113,4 +112,4 @@
 5. Auth-required interruption preserves user draft messages.
 6. Replayed/expired auth link returns safe HTML error page.
 7. Missing/invalid timezone falls back to `APP_TIMEZONE`.
-8. Expired/replayed App launch links are rejected safely.
+8. Missing/invalid/expired Telegram App `initData` is rejected safely.

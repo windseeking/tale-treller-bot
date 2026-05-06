@@ -30,8 +30,8 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 - No noisy bot responses while draft is being collected.
 - Task creation starts only on explicit user action.
 - Selection buttons should disappear via message edits.
-- If user is not connected to Trello, the reply keyboard shows `Connect Trello` and a `Settings` Web App button.
-- If user is connected to Trello, the reply keyboard shows `Create task`, `Cancel`, a `Settings` Web App button, and `Disconnect Trello`.
+- If user is not connected to Trello, the reply keyboard shows `Connect Trello`.
+- If user is connected to Trello, the reply keyboard shows `Create task`, `Cancel`, and `Disconnect Trello`.
 - If Trello is missing/revoked/expired, flow stops safely and draft text is preserved.
 - If timezone is not configured, task creation continues with `APP_TIMEZONE`.
 - Error responses must include enough debug context.
@@ -48,8 +48,9 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 ## Telegram App Policy
 - The settings App is served from `/app`.
 - App API endpoints use `/api/app/*`.
-- The App is opened from a Telegram `web_app` button using one-time server-side launch sessions.
-- App launch links exchange `sid` and `secret` for a short-lived bearer token before using App APIs.
+- The App is opened from the standard Telegram Menu Button at the stable `/app` URL.
+- App API endpoints validate Telegram Mini App `initData` from the `X-Telegram-Init-Data` request header.
+- App launch does not use one-time `sid`/`secret` sessions.
 - The App can show Trello connection status, create a Trello connect link, and disconnect Trello.
 
 ## Visual Design Palette

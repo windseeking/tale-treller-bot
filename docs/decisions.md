@@ -72,7 +72,7 @@
 ---
 
 ## D-011: Telegram App for Settings
-**Decision:** Move settings UX to a Telegram App served from `/app`, with APIs under `/api/app/*`, Vue 3 + Vite + PrimeVue 4, one-time server-side launch sessions, and standard IANA timezone names in every locale.
+**Decision:** Move settings UX to a Telegram App served from `/app`, with APIs under `/api/app/*`, Vue 3 + Vite + PrimeVue 4, Telegram `initData` authentication, and standard IANA timezone names in every locale.
 
 **Reason:** Chat inline keyboards are not a good fit for timezone selection because same-offset cities can be far apart and confusing. A searchable App selector over IANA timezone names plus current UTC offsets gives better UX without maintaining localized timezone labels.
 
@@ -96,3 +96,10 @@
 **Decision:** In `NODE_ENV=development`, serve the Telegram App from Vite middleware on the same Express server and `/app` path used by Telegram links. In non-development modes, continue serving built static files from `dist/public/app`.
 
 **Reason:** Telegram Mini App previews need the public `APP_BASE_URL/app` URL, but frontend iteration should not require rebuilding the App after every change.
+
+---
+
+## D-015: Telegram initData for App Authorization
+**Decision:** Authorize Telegram App API requests by validating Telegram Mini App `initData` from `X-Telegram-Init-Data`. The App is opened from the standard Telegram Menu Button at stable `/app`; bot-generated App launch links are not used.
+
+**Reason:** One-time App launch links are brittle with Telegram WebView caching and Menu Button entry. Verified `initData` ties each request to the current Telegram user without replay-prone `sid`/`secret` links.

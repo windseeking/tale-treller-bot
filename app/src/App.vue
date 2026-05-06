@@ -22,7 +22,6 @@ type TrelloPayload = {
 };
 
 type AppPayload = {
-  token: string;
   settings: SettingsPayload;
   trello: TrelloPayload;
 };
@@ -30,7 +29,7 @@ type AppPayload = {
 const toast = useToast();
 const confirm = useConfirm();
 
-const token = ref<string | null>(null);
+const telegramInitData = ref("");
 const settings = ref<SettingsPayload>({
   timeZone: null,
   isDefaultTimeZone: true,
@@ -72,24 +71,18 @@ onMounted(async () => {
   window.Telegram?.WebApp?.MainButton?.hide();
 
   try {
-    const params = new URLSearchParams(window.location.search);
-    const sid = params.get("sid") ?? "";
-    const secret = params.get("secret") ?? "";
+    telegramInitData.value = window.Telegram?.WebApp?.initData ?? "";
 
-    if (!sid || !secret) {
-      fatalMessage.value = "Откройте приложение из Telegram-бота, чтобы получить свежую ссылку.";
+    if (!telegramInitData.value) {
+      fatalMessage.value = "Откройте приложение из Telegram.";
       return;
     }
 
     const [sessionPayload, timeZonePayload] = await Promise.all([
-      apiRequest<AppPayload>("/api/app/session/exchange", {
-        method: "POST",
-        body: JSON.stringify({sid, secret})
-      }),
+      apiRequest<AppPayload>("/api/app/me"),
       fetch("/api/app/time-zones").then((response) => response.json() as Promise<{ timeZones: TimeZoneOption[] }>)
     ]);
 
-    token.value = sessionPayload.token;
     settings.value = sessionPayload.settings;
     trello.value = sessionPayload.trello;
     timeZones.value = timeZonePayload.timeZones;
@@ -178,9 +171,10 @@ function confirmDisconnect(): void {
     message: "Отключить Trello для этого Telegram-пользователя?",
     header: "Отключить Trello",
     icon: "pi pi-exclamation-triangle",
-    rejectLabel: "Отмена",
     acceptLabel: "Отключить",
     acceptClass: "p-button-danger",
+    rejectLabel: "Отмена",
+    rejectClass: "p-button-secondary",
     accept: disconnectTrello
   });
 }
@@ -201,8 +195,8 @@ async function disconnectTrello(): Promise<void> {
 async function apiRequest<T>(url: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
-  if (token.value) {
-    headers.set("Authorization", `Bearer ${token.value}`);
+  if (telegramInitData.value) {
+    headers.set("X-Telegram-Init-Data", telegramInitData.value);
   }
 
   const response = await fetch(url, {...init, headers});
@@ -234,79 +228,85 @@ function getErrorMessage(error: unknown): string {
 }
 
 </script>
-
+width
 <template>
   <main class="relative mx-auto w-full max-w-3xl p-5 pb-7">
     <Toast/>
-    <ConfirmDialog/>
+    <ConfirmDialog :pt="{root: 'w-[calc(100%-2.5rem)]',}"/>
 
-    <section class="flex items-start justify-between gap-3.5">
+    <section class="mb-3.5 flex items-start justify-between gap-3.5">
       <hgroup>
         <p class="mb-1 text-xs font-extrabold uppercase text-primary">Tale Treller</p>
         <h1 class="text-2xl font-bold">Настройки</h1>
       </hgroup>
       <div class="shrink-0">
-        <Badge :severity="trello.connected ? 'success' : 'secondary'">
+        <Badge :severity="trello.connected ? 'success' : 'warn'">
           {{ trello.connected ? "Trello подключен" : "Trello не подключен" }}
         </Badge>
       </div>
     </section>
 
     <!--  Loading & Error states  -->
-    <Message v-if="fatalMessage" severity="error" :closable="false">{{ fatalMessage }}</Message>
-    <Message v-else-if="isLoading" severity="info" :closable="false">Загружаю настройки...</Message>
+    <Message v-if="fatalMessage" severity="error">{{ fatalMessage }}</Message>
+    <Message v-else-if="isLoading" severity="info">Загружаю настройки...</Message>
 
     <!-- Loaded settings   -->
-    <div class="mt-3.5 space-y-3.5" v-else>
-      <!--    Timezone  -->
-      <section
-          class="p-4 rounded-lg border border-secondary/10 bg-white shadow-md shadow-secondary/5"
-      >
-        <div class="mb-3.5 flex items-start justify-between gap-3">
-          <div>
-            <h2 class="text-md font-bold">Часовой пояс</h2>
-            <p class="mt-2 text-xs text-secondary">
-              Используется для распознавания сроков в задачах.
-            </p>
+    <div v-else
+         class="flex flex-col gap-3.5"
+         :class="{'flex-col-reverse': !trello.connected}">
+      <!--   App settings   -->
+      <div>
+        <!--    Timezone  -->
+        <section
+            class="p-4 rounded-lg border border-secondary/10 bg-white shadow-md shadow-secondary/5"
+        >
+          <div class="mb-3.5 flex items-start justify-between gap-3">
+            <div>
+              <h2 class="text-md font-bold">Часовой пояс</h2>
+              <p class="mt-2 text-xs text-secondary">
+                Используется для распознавания сроков в задачах.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div class="mb-2.5 flex items-start gap-2">
-          <AutoComplete
-              v-model="selectedTimeZone"
-              :suggestions="filteredTimeZones"
-              :disabled="isSavingSettings"
-              class="grow"
-              option-label="name"
-              dropdown
-              force-selection
-              placeholder="Найти город или IANA timezone"
-              @complete="searchTimeZones"
-              @option-select="handleTimeZoneSelect"
-          >
-            <template #option="slotProps">
-              <div class="flex items-center justify-between gap-2 w-full">
-                <span>{{ slotProps.option.name }}</span>
-                <Badge severity="info" size="small">{{ slotProps.option.offset }}</Badge>
-              </div>
-            </template>
-          </AutoComplete>
-          <Button
-              class="shrink-0"
-              icon="pi pi-compass"
-              severity="secondary"
-              aria-label="Определить автоматически"
-              :loading="isSavingSettings"
-              v-tooltip.bottom="'Определить автоматически'"
-              @click="detectTimeZone"
-          />
-        </div>
+          <div class="mb-2.5 flex items-start gap-2">
+            <AutoComplete
+                v-model="selectedTimeZone"
+                :suggestions="filteredTimeZones"
+                :disabled="isSavingSettings"
+                class="grow"
+                option-label="name"
+                dropdown
+                force-selection
+                placeholder="Найти город или IANA timezone"
+                @complete="searchTimeZones"
+                @option-select="handleTimeZoneSelect"
+            >
+              <template #option="slotProps">
+                <div class="flex items-center justify-between gap-2 w-full">
+                  <span>{{ slotProps.option.name }}</span>
+                  <Badge severity="info" size="small">{{ slotProps.option.offset }}</Badge>
+                </div>
+              </template>
+            </AutoComplete>
+            <Button
+                class="shrink-0"
+                icon="pi pi-compass"
+                severity="secondary"
+                aria-label="Определить автоматически"
+                :loading="isSavingSettings"
+                v-tooltip.bottom="'Определить автоматически'"
+                @click="detectTimeZone"
+            />
+          </div>
 
-        <Message v-if="detectMessage" :severity="detectSeverity" :closable="false">
-          {{ detectMessage }}
-        </Message>
-      </section>
+          <Message v-if="detectMessage" :severity="detectSeverity" :closable="false">
+            {{ detectMessage }}
+          </Message>
+        </section>
+      </div>
 
+      <!--  Trello    -->
       <section
           class="p-4 rounded-lg border border-secondary/10 bg-[linear-gradient(135deg,rgba(224,242,254,0.92),rgba(245,243,255,0.76)),#fff]"
       >

@@ -2,7 +2,6 @@ export const BOT_BUTTON_LABELS = {
   connectTrello: "Подключить Trello",
   statusTrello: "Статус Trello",
   disconnectTrello: "Выйти из Trello",
-  settings: "Настройки",
   createTask: "Создать задачу",
   cancel: "Отмена",
   inlineCancel: "❌ Отмена",
@@ -28,10 +27,6 @@ const ACTION_CONFIG = {
   trello_disconnect: {
     commands: ["/trello_disconnect"],
     buttonLabels: [BOT_BUTTON_LABELS.disconnectTrello]
-  },
-  settings: {
-    commands: ["/settings"],
-    buttonLabels: [BOT_BUTTON_LABELS.settings]
   },
   create_task: {
     commands: ["/create_task"],

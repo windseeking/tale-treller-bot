@@ -53,13 +53,5 @@ export const BOT_MESSAGES = {
   authServiceConnected: "Trello подключен. Можно возвращаться в Telegram.",
   authServiceConnectedNotification: "Trello подключен, можно создавать задачу ✅",
   timeZoneSetupIntro:
-    "Чтобы я корректно понимал сроки задач, укажи часовой пояс. Можно пропустить: тогда я буду использовать значение по умолчанию.",
-  settingsMenu: (timeZone: string, isDefault: boolean) =>
-    `Настройки\n\nЧасовой пояс: *${timeZone}*${isDefault ? " _(по умолчанию)_" : ""}`,
-  timeZoneChooseAction: "Как настроить часовой пояс?",
-  manualTimeZoneRegionPrompt: "Сначала выбери регион:",
-  manualTimeZonePrompt: "Теперь выбери ближайший город:",
-  timeZoneSaved: (timeZone: string) => `Готово, часовой пояс сохранен: *${timeZone}*.`,
-  timeZoneAutoLinkCreated: "Открой страницу, проверь найденный часовой пояс и нажми «Сохранить».",
-  settingsAppOpen: "Открой приложение настроек."
+    "Чтобы я корректно понимал сроки задач, укажи часовой пояс в приложении настроек. Можно пропустить: тогда я буду использовать значение по умолчанию."
 } as const;
