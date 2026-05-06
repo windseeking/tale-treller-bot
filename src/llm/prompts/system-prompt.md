@@ -73,8 +73,8 @@ Return strictly this JSON structure:
 - Convert to ISO-8601 date-time with timezone (offset required), e.g. `YYYY-MM-DDTHH:MM:SSZ` or
   `YYYY-MM-DDTHH:MM:SS+03:00`.
 
-- Use the reference date and timezone provided in the user's message (e.g., "Current date: 2026-02-22, Timezone:
-  Europe/Lisbon") as the only reference point for interpreting relative dates.
+- Use the reference date-time and UTC offset provided in the user's message (e.g.,
+  `Current date: 2026-02-22T14:30:00.000+03:00`) as the only reference point for interpreting relative dates.
 
 - If time is not specified:
 
@@ -83,7 +83,7 @@ Return strictly this JSON structure:
 - evening → `18:00`
 - otherwise → `18:00`
 
-- If the deadline is ambiguous, unclear, or you cannot determine an exact date with confidence from the message + provided reference date/timezone, omit the "due" field entirely.
+- If the deadline is ambiguous, unclear, or you cannot determine an exact date with confidence from the message + provided reference date/offset, omit the "due" field entirely.
 
 ------------------------------------------------------------------------
 

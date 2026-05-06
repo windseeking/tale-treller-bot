@@ -6,10 +6,12 @@ import { runMigrations } from "./db/migrations.js";
 import { TrelloAuthSessionsRepository } from "./db/repositories/trello-auth-sessions-repository.js";
 import { TrelloConnectionsRepository } from "./db/repositories/trello-connections-repository.js";
 import { TelegramUsersRepository } from "./db/repositories/telegram-users-repository.js";
+import { UserSettingsRepository } from "./db/repositories/user-settings-repository.js";
 import { normalizeError, toLogPayload } from "./errors/error-handler.js";
 import { createHttpServer } from "./http/server.js";
 import { LlmClient } from "./llm/llm-client.js";
 import { logger } from "./logger/logger.js";
+import { SettingsService } from "./settings/settings-service.js";
 import { TrelloClient } from "./trello/trello-client.js";
 
 let shuttingDown = false;
@@ -31,14 +33,17 @@ async function bootstrap(): Promise<void> {
   const telegramUsersRepository = new TelegramUsersRepository(db);
   const trelloConnectionsRepository = new TrelloConnectionsRepository(db);
   const trelloAuthSessionsRepository = new TrelloAuthSessionsRepository(db);
+  const userSettingsRepository = new UserSettingsRepository(db);
+  const settingsService = new SettingsService(userSettingsRepository);
 
   const trelloAuthService = new TrelloAuthService(
     telegramUsersRepository,
     trelloConnectionsRepository,
-    trelloAuthSessionsRepository
+    trelloAuthSessionsRepository,
+    userSettingsRepository
   );
 
-  const httpServer = createHttpServer(trelloAuthService);
+  const httpServer = createHttpServer(trelloAuthService, settingsService, telegramUsersRepository);
   await httpServer.start();
   stopHttp = async () => {
     await httpServer.stop();
@@ -48,7 +53,9 @@ async function bootstrap(): Promise<void> {
     telegramToken: env.TELEGRAM_BOT_TOKEN,
     trelloClient,
     llmClient,
-    trelloAuthService
+    trelloAuthService,
+    telegramUsersRepository,
+    userSettingsRepository
   });
 
   logger.info(

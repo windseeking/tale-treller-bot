@@ -6,6 +6,17 @@ export type TelegramUser = {
   telegramChatId: number;
 };
 
+export type UserSettings = {
+  telegramUserId: number;
+  values: Record<string, string | null>;
+};
+
+export type UserSetting = {
+  telegramUserId: number;
+  key: string;
+  value: string | null;
+};
+
 export type TrelloConnectionRecord = {
   telegramUserId: number;
   trelloMemberId: string;
