@@ -1,5 +1,5 @@
-import { DbClient } from "../client.js";
-import type { TelegramUser } from "./types.js";
+import { DbClient } from '../client.js'
+import type { TelegramUser } from './types.js'
 
 type TelegramUserRow = {
   telegram_user_id: string;
@@ -18,7 +18,7 @@ export class TelegramUsersRepository {
       DO UPDATE SET telegram_chat_id = EXCLUDED.telegram_chat_id, updated_at = NOW()
       `,
       [params.telegramUserId, params.telegramChatId]
-    );
+    )
   }
 
   public async findByTelegramUserId(telegramUserId: number): Promise<TelegramUser | null> {
@@ -30,16 +30,16 @@ export class TelegramUsersRepository {
       LIMIT 1
       `,
       [telegramUserId]
-    );
+    )
 
-    const row = result.rows[0];
+    const row = result.rows[0]
     if (!row) {
-      return null;
+      return null
     }
 
     return {
       telegramUserId: Number(row.telegram_user_id),
       telegramChatId: Number(row.telegram_chat_id)
-    };
+    }
   }
 }

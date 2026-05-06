@@ -29,6 +29,7 @@
    - inline selection messages are edited correctly;
    - success result includes card link/button;
    - reply keyboard is restored for next draft.
+   - bot and App user-facing strings come from their i18n JSON catalogs.
 
 ## Minimum Manual Smoke Check
 
@@ -42,5 +43,7 @@
 8. Replayed or expired auth link returns safe error page.
 9. Telegram Menu Button opens the Telegram App.
 10. App timezone setup stores a valid IANA timezone ID.
-11. App Trello status/actions reflect connected, expired, and disconnected states.
-12. Card generation uses the saved timezone, or `APP_TIMEZONE` when timezone is missing.
+11. App locale setup stores `en` or `ru` and immediately re-renders App copy.
+12. Bot `/start` initializes missing locale from Telegram language settings without overwriting an existing locale.
+13. App Trello status/actions reflect connected, expired, and disconnected states.
+14. Card generation uses the saved timezone, or `APP_TIMEZONE` when timezone is missing.

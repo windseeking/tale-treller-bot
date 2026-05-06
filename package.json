@@ -11,7 +11,8 @@
     "build": "npm run build:server && npm run build:app",
     "build:server": "tsc -p tsconfig.json && npm run copy:assets",
     "build:app": "vue-tsc --project app/tsconfig.json --noEmit && vite build --config app/vite.config.ts",
-    "copy:assets": "mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
+    "copy:assets": "mkdir -p dist/llm/prompts dist/i18n/locales && cp src/llm/prompts/*.md dist/llm/prompts/ && cp src/i18n/locales/*.json dist/i18n/locales/",
+    "lint": "eslint . --fix",
     "start": "node dist/index.js",
     "test:init-data": "node --import tsx --test tests/**/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -23,6 +24,7 @@
     "@primeuix/themes": "^2.0.3",
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
+    "i18n": "^0.15.3",
     "pg": "^8.19.0",
     "pino": "^9.9.0",
     "primeicons": "^7.0.0",
@@ -30,18 +32,25 @@
     "tailwindcss-primeui": "^0.6.1",
     "telegraf": "^4.16.3",
     "vue": "^3.5.33",
+    "vue-i18n": "^11.4.0",
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
     "@tailwindcss/vite": "^4.2.4",
     "@types/express": "^5.0.6",
     "@types/node": "^24.4.0",
     "@types/pg": "^8.16.0",
     "@vitejs/plugin-vue": "^6.0.6",
+    "eslint": "^10.3.0",
+    "eslint-plugin-vue": "^10.9.1",
+    "globals": "^17.6.0",
     "pino-pretty": "^13.1.2",
     "tailwindcss": "^4.2.4",
     "tsx": "^4.20.4",
     "typescript": "^5.9.2",
+    "typescript-eslint": "^8.59.2",
     "vite": "^8.0.10",
     "vue-tsc": "^3.2.8"
   }

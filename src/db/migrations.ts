@@ -1,4 +1,4 @@
-import { DbClient } from "./client.js";
+import { DbClient } from './client.js'
 
 const MIGRATIONS: string[] = [
   `
@@ -93,10 +93,10 @@ const MIGRATIONS: string[] = [
     END IF;
   END $$;
   `
-];
+]
 
 export async function runMigrations(db: DbClient): Promise<void> {
   for (const sql of MIGRATIONS) {
-    await db.query(sql);
+    await db.query(sql)
   }
 }

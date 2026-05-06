@@ -1,6 +1,7 @@
-import { DbClient } from "../client.js";
-import { TIME_ZONE_SETTING_KEY } from "../../settings/time-zone.js";
-import type { UserSetting, UserSettings } from "./types.js";
+import { DbClient } from '../client.js'
+import { TIME_ZONE_SETTING_KEY } from '../../settings/time-zone.js'
+import { LOCALE_SETTING_KEY } from '../../shared/i18n/index.js'
+import type { UserSetting, UserSettings } from './types.js'
 
 type UserSettingsRow = {
   telegram_user_id: string;
@@ -19,16 +20,16 @@ export class UserSettingsRepository {
       WHERE telegram_user_id = $1
       `,
       [telegramUserId]
-    );
+    )
 
     if (result.rows.length === 0) {
-      return null;
+      return null
     }
 
     return {
       telegramUserId,
       values: Object.fromEntries(result.rows.map((row) => [row.setting_key, row.setting_value]))
-    };
+    }
   }
 
   public async findValue(telegramUserId: number, key: string): Promise<string | null> {
@@ -40,9 +41,9 @@ export class UserSettingsRepository {
       LIMIT 1
       `,
       [telegramUserId, key]
-    );
+    )
 
-    return result.rows[0]?.setting_value ?? null;
+    return result.rows[0]?.setting_value ?? null
   }
 
   public async upsertValue(params: UserSetting): Promise<void> {
@@ -54,11 +55,11 @@ export class UserSettingsRepository {
       DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
       `,
       [params.telegramUserId, params.key, params.value]
-    );
+    )
   }
 
   public async findTimeZone(telegramUserId: number): Promise<string | null> {
-    return this.findValue(telegramUserId, TIME_ZONE_SETTING_KEY);
+    return this.findValue(telegramUserId, TIME_ZONE_SETTING_KEY)
   }
 
   public async upsertTimeZone(params: { telegramUserId: number; timeZone: string | null }): Promise<void> {
@@ -66,6 +67,18 @@ export class UserSettingsRepository {
       telegramUserId: params.telegramUserId,
       key: TIME_ZONE_SETTING_KEY,
       value: params.timeZone
-    });
+    })
+  }
+
+  public async findLocale(telegramUserId: number): Promise<string | null> {
+    return this.findValue(telegramUserId, LOCALE_SETTING_KEY)
+  }
+
+  public async upsertLocale(params: { telegramUserId: number; locale: string | null }): Promise<void> {
+    await this.upsertValue({
+      telegramUserId: params.telegramUserId,
+      key: LOCALE_SETTING_KEY,
+      value: params.locale
+    })
   }
 }

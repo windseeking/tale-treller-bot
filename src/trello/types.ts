@@ -22,7 +22,7 @@ export type TrelloList = {
 export type CreateTrelloCardInput = {
   name: string;
   desc: string;
-  pos: "top";
+  pos: 'top';
   idList: string;
   due?: string;
   urlSource?: string;

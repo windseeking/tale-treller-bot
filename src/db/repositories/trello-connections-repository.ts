@@ -1,5 +1,5 @@
-import { DbClient } from "../client.js";
-import type { TrelloConnectionRecord } from "./types.js";
+import { DbClient } from '../client.js'
+import type { TrelloConnectionRecord } from './types.js'
 
 type TrelloConnectionRow = {
   telegram_user_id: string;
@@ -8,7 +8,7 @@ type TrelloConnectionRow = {
   trello_api_key: string;
   trello_token: string;
   token_expires_at: Date;
-  status: "active" | "revoked";
+  status: 'active' | 'revoked';
   revoked_at: Date | null;
 };
 
@@ -55,7 +55,7 @@ export class TrelloConnectionsRepository {
         params.trelloTokenEncrypted,
         params.tokenExpiresAt
       ]
-    );
+    )
   }
 
   public async findByTelegramUserId(telegramUserId: number): Promise<TrelloConnectionRecord | null> {
@@ -75,11 +75,11 @@ export class TrelloConnectionsRepository {
       LIMIT 1
       `,
       [telegramUserId]
-    );
+    )
 
-    const row = result.rows[0];
+    const row = result.rows[0]
     if (!row) {
-      return null;
+      return null
     }
 
     return {
@@ -91,7 +91,7 @@ export class TrelloConnectionsRepository {
       tokenExpiresAt: new Date(row.token_expires_at),
       status: row.status,
       revokedAt: row.revoked_at ? new Date(row.revoked_at) : null
-    };
+    }
   }
 
   public async revoke(telegramUserId: number): Promise<void> {
@@ -102,6 +102,6 @@ export class TrelloConnectionsRepository {
       WHERE telegram_user_id = $1 AND status = 'active'
       `,
       [telegramUserId]
-    );
+    )
   }
 }

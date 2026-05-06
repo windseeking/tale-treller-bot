@@ -1,5 +1,5 @@
-export type TrelloConnectionStatus = "active" | "revoked";
-export type TrelloAuthSessionStatus = "pending" | "redirected" | "completed" | "failed" | "expired";
+export type TrelloConnectionStatus = 'active' | 'revoked';
+export type TrelloAuthSessionStatus = 'pending' | 'redirected' | 'completed' | 'failed' | 'expired';
 
 export type TelegramUser = {
   telegramUserId: number;

@@ -1,0 +1,48 @@
+{
+  "title": "Settings",
+  "loadingSettings": "Loading settings...",
+  "trelloConnectedBadge": "Trello connected",
+  "trelloNotConnectedBadge": "Trello not connected",
+  "openFromTelegram": "Open the app from Telegram.",
+  "requestFailed": "Request failed.",
+  "unknownError": "Unknown error.",
+  "genericActionFailed": "Could not complete the action.",
+  "invalidTimeZone": "Invalid time zone.",
+  "invalidLocale": "Invalid language.",
+  "common": {
+    "cancel": "Cancel"
+  },
+  "sections": {
+    "locale": {
+      "title": "Language",
+      "description": "Used for bot messages and this settings app.",
+      "placeholder": "Choose language"
+    },
+    "timeZone": {
+      "title": "Time zone",
+      "description": "Used to recognize task deadlines.",
+      "placeholder": "Find city or IANA timezone",
+      "autoDetect": "Detect automatically",
+      "autoDetectFailed": "Could not detect the time zone. Choose it manually from the list."
+    },
+    "trello": {
+      "connectedSummary": "@{username}, valid until {expiresAt}.",
+      "unknownExpiry": "expiry unknown",
+      "expiredSummary": "Connection expired; reconnect the account.",
+      "disconnectedSummary": "Connect Trello to create cards.",
+      "reconnect": "Reconnect Trello",
+      "connect": "Connect Trello",
+      "disconnect": "Disconnect",
+      "confirmDisconnectMessage": "Disconnect Trello for this Telegram user?",
+      "confirmDisconnectHeader": "Disconnect Trello"
+    }
+  },
+  "toasts": {
+    "saved": "Saved",
+    "done": "Done",
+    "error": "Error",
+    "localeUpdated": "Language updated.",
+    "timeZoneUpdated": "Time zone updated.",
+    "trelloDisconnected": "Trello disconnected."
+  }
+}

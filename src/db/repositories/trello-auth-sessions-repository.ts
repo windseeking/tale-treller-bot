@@ -1,5 +1,5 @@
-import { DbClient } from "../client.js";
-import type { TrelloAuthSessionRecord, TrelloAuthSessionStatus } from "./types.js";
+import { DbClient } from '../client.js'
+import type { TrelloAuthSessionRecord, TrelloAuthSessionStatus } from './types.js'
 
 type TrelloAuthSessionRow = {
   id: string;
@@ -41,7 +41,7 @@ export class TrelloAuthSessionsRepository {
         params.sessionSecretHash,
         params.expiresAt
       ]
-    );
+    )
   }
 
   public async findById(id: string): Promise<TrelloAuthSessionRecord | null> {
@@ -61,11 +61,11 @@ export class TrelloAuthSessionsRepository {
       LIMIT 1
       `,
       [id]
-    );
+    )
 
-    const row = result.rows[0];
+    const row = result.rows[0]
     if (!row) {
-      return null;
+      return null
     }
 
     return {
@@ -77,7 +77,7 @@ export class TrelloAuthSessionsRepository {
       requestTokenSecretEncrypted: row.request_token_secret,
       status: row.status,
       expiresAt: new Date(row.expires_at)
-    };
+    }
   }
 
   public async updateRedirected(params: {
@@ -96,7 +96,7 @@ export class TrelloAuthSessionsRepository {
       WHERE id = $1
       `,
       [params.id, params.requestTokenEncrypted, params.requestTokenSecretEncrypted]
-    );
+    )
   }
 
   public async updateStatus(id: string, status: TrelloAuthSessionStatus): Promise<void> {
@@ -107,7 +107,7 @@ export class TrelloAuthSessionsRepository {
       WHERE id = $1
       `,
       [id, status]
-    );
+    )
   }
 
   public async markExpired(): Promise<void> {
@@ -117,7 +117,7 @@ export class TrelloAuthSessionsRepository {
       SET status = 'expired', updated_at = NOW()
       WHERE status IN ('pending', 'redirected') AND expires_at < NOW()
       `
-    );
+    )
   }
 
   public async failPendingByTelegramUser(telegramUserId: number): Promise<void> {
@@ -128,6 +128,6 @@ export class TrelloAuthSessionsRepository {
       WHERE telegram_user_id = $1 AND status IN ('pending', 'redirected')
       `,
       [telegramUserId]
-    );
+    )
   }
 }
