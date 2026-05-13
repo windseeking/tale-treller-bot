@@ -9,6 +9,20 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "#config/*": ["src/config/*"],
+      "#controllers/*": ["src/controllers/*"],
+      "#errors/*": ["src/errors/*"],
+      "#interfaces/*": ["src/interfaces/*"],
+      "#utils/*": ["src/infrastructure/utils/*"],
+      "#usecases/*": ["src/use-cases/*"],
+      "#validators/*": ["src/infrastructure/validation/zod/*"],
+      "@bot/*": ["src/infrastructure/bot/*"],
+      "@presenters/*": ["src/presenters/*"],
+      "@llm/*": ["src/infrastructure/llm/*"],
+      "@trello/*": ["src/infrastructure/trello/*"]
+    },
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true
   },

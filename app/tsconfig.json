@@ -6,9 +6,12 @@
     "moduleResolution": "Bundler",
     "jsx": "preserve",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "rootDir": ".",
+    "rootDir": "..",
     "outDir": "../dist/app-ts",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "#interfaces/*": ["src/interfaces/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts", "../src/interfaces/**/*.ts"]
 }

@@ -6,13 +6,13 @@
 2. Bot ensures this Telegram user exists in storage.
 3. Bot checks active Trello connection for this Telegram user.
 4. If Trello is connected, bot sends task-creation welcome message and reply keyboard:
-   - `Create task`
-   - `Cancel`
-   - `Disconnect Trello`
+   - `Создать задачу`
+   - `Отмена`
+   - `Выйти из Trello`
 5. If Trello is not connected/revoked/expired, bot sends connect-required welcome message (with safety note) and reply keyboard:
-   - `Connect Trello`
+   - `Подключить Trello`
 6. User sends one or more text messages (bot silently accumulates draft).
-7. User presses `Create task`.
+7. User presses `Создать задачу`.
 8. Bot validates draft:
    - empty -> `draftEmpty`;
    - < 15 chars -> `tooShort`;
@@ -21,24 +21,24 @@
    - no connection/revoked/expired -> send connect CTA with inline button and stop flow;
    - active -> continue.
 10. If `lastBoard/lastList` exists, bot offers inline options:
-   - `Create here`
-   - `↩️ Change board`
+   - `Создать тут`
+   - `↩️ Поменять доску`
    - `❌ Cancel`
-11. If `Create here`, bot goes directly to LLM + Trello card creation.
-12. If `↩️ Change board` (or no last selection), bot shows boards list.
+11. If `Создать тут`, bot goes directly to LLM + Trello card creation.
+12. If `↩️ Поменять доску` (or no last selection), bot shows boards list.
 13. User selects board:
     - selection message is edited to `Доска: ...`.
 14. Bot shows lists of selected board.
 15. User selects list:
     - selection message is edited to `Колонка: ...`.
-16. Bot sends `cardInProgress`.
+16. Bot sends card creation progress message.
 17. Bot:
     - resolves user timezone from settings or `APP_TIMEZONE`;
     - computes current date-time with the timezone's current UTC offset;
     - generates card payload via LLM using that current date-time;
     - appends signature to `desc`;
     - creates card in Trello using user credentials.
-18. `cardInProgress` is edited to `cardCreated` + `Open card` button.
+18. Progress message is edited to created-card message + `Открыть карточку` button.
 19. Bot clears current task, stores last selection, restores authorized reply keyboard.
 
 ## 2. Trello Authorization Flows
@@ -50,7 +50,7 @@
 4. User completes Trello OAuth page.
 5. Callback stores encrypted token and tries to save timezone from Trello prefs if Trello returns a valid IANA timezone.
 6. Callback marks connection active.
-7. Bot optionally sends notification: `Trello подключен, можно создавать задачу`.
+7. Bot optionally sends success notification.
 8. If no timezone is saved, bot sends a setup prompt explaining that timezone is needed for task deadlines.
 
 ### 2.2 Status
@@ -98,7 +98,7 @@
 2. Bot sends cancellation confirmation.
 3. Bot shows reply keyboard for a new draft.
 
-### 4.2 Cancel in Inline Flow (`action:cancel`)
+### 4.2 Cancel in Inline Flow (`task:cancel`)
 1. Bot resets current task.
 2. Bot sends cancellation confirmation.
 3. Bot shows reply keyboard for a new draft.
@@ -107,7 +107,7 @@
 
 1. No available boards -> `noBoards`.
 2. No lists in selected board -> `noLists`, return to board selection.
-3. Expired callback query -> safely handled via `safeAnswerCbQuery`.
+3. Expired callback query -> safely handled via `BotMessenger.answerCallbackQuery`.
 4. Invalid/unstable LLM response -> parse/shape diagnostics.
 5. Auth-required interruption preserves user draft messages.
 6. Replayed/expired auth link returns safe HTML error page.
