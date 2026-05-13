@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { validateTelegramInitData } from '../../src/security/telegram-init-data.ts'
+import { validateTelegramInitData } from '../../src/infrastructure/security/telegram-init-data.ts'
 
 const BOT_TOKEN = '123456:test-token'
 const NOW = new Date('2026-05-06T12:00:00.000Z')

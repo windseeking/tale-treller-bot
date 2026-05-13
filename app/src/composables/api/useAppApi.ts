@@ -1,4 +1,5 @@
-import type { AppPayload, TimeZoneOption } from '../../types/app'
+import type { AppPayload } from '#interfaces/app/app-payload'
+import type { TimeZoneOption } from '#interfaces/settings/time-zone-option'
 import { useApi } from './useApi'
 
 export function useAppApi() {

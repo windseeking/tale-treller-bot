@@ -1,4 +1,4 @@
-import type { SettingsPayload } from '../../types/app'
+import type { SettingsPayload } from '#interfaces/settings/settings-payload'
 import { useApi } from './useApi'
 
 export function useSettingsApi() {

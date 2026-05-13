@@ -10,6 +10,11 @@ export default defineConfig({
     outDir: '../dist/public/app',
     emptyOutDir: true
   },
+  resolve: {
+    alias: {
+      '@interfaces/*': '../src/interfaces/*'
+    }
+  },
   server: {
     port: 5173,
     host: true,

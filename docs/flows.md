@@ -98,7 +98,7 @@
 2. Bot sends cancellation confirmation.
 3. Bot shows reply keyboard for a new draft.
 
-### 4.2 Cancel in Inline Flow (`action:cancel`)
+### 4.2 Cancel in Inline Flow (`task:cancel`)
 1. Bot resets current task.
 2. Bot sends cancellation confirmation.
 3. Bot shows reply keyboard for a new draft.
@@ -107,7 +107,7 @@
 
 1. No available boards -> `noBoards`.
 2. No lists in selected board -> `noLists`, return to board selection.
-3. Expired callback query -> safely handled via `safeAnswerCbQuery`.
+3. Expired callback query -> safely handled via `BotMessenger.answerCallbackQuery`.
 4. Invalid/unstable LLM response -> parse/shape diagnostics.
 5. Auth-required interruption preserves user draft messages.
 6. Replayed/expired auth link returns safe HTML error page.

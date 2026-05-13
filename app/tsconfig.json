@@ -8,7 +8,10 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "rootDir": "..",
     "outDir": "../dist/app-ts",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "#interfaces/*": ["src/interfaces/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts", "../src/interfaces/**/*.ts"]
 }

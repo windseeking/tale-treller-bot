@@ -5,13 +5,16 @@
   "type": "module",
   "description": "Telegram bot for creating Trello cards from user messages",
   "main": "dist/index.js",
+  "imports": {
+    "#validators/*": "./dist/infrastructure/validation/zod/*"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "dev:app": "vite --host 0.0.0.0 --config app/vite.config.ts",
     "build": "npm run build:server && npm run build:app",
     "build:server": "tsc -p tsconfig.json && npm run copy:assets",
     "build:app": "vue-tsc --project app/tsconfig.json --noEmit && vite build --config app/vite.config.ts",
-    "copy:assets": "mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
+    "copy:assets": "mkdir -p dist/infrastructure/llm/prompts && cp src/infrastructure/llm/prompts/*.md dist/infrastructure/llm/prompts/",
     "lint": "eslint . --fix",
     "start": "node dist/index.js",
     "test:init-data": "node --import tsx --test tests/**/*.test.ts",

@@ -109,7 +109,7 @@ async function startTestServer() {
   process.env.LLM_API_KEY = 'llm-key'
   process.env.LLM_MODEL = 'test-model'
 
-  const { createHttpServer } = await import('../../src/http/server.ts')
+  const { createHttpServer } = await import('../../src/infrastructure/http/express-server.ts')
   const saves: Array<{ telegramUserId: number; telegramChatId: number }> = []
   const savedTimeZones: Array<{ telegramUserId: number; timeZone: string }> = []
   const revokedUsers: number[] = []
@@ -119,9 +119,9 @@ async function startTestServer() {
       saves.push(params)
     }
   }
-  const settingsService = {
+  const userSettingsRepository = {
     findTimeZone: async () => 'Europe/Lisbon',
-    saveTimeZone: async (params: { telegramUserId: number; timeZone: string }) => {
+    upsertTimeZone: async (params: { telegramUserId: number; timeZone: string }) => {
       savedTimeZones.push(params)
     }
   }
@@ -143,7 +143,7 @@ async function startTestServer() {
     handleCallback: async () => ({ ok: false, reason: 'unused' })
   }
 
-  const server = createHttpServer(authService, settingsService, telegramUsersRepository)
+  const server = createHttpServer(authService, telegramUsersRepository, userSettingsRepository)
   await server.start()
 
   return {

@@ -2,8 +2,9 @@
 import { ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 
+import type { SettingsPayload } from '#interfaces/settings/settings-payload'
+import type { TimeZoneOption } from '#interfaces/settings/time-zone-option'
 import { useSettingsApi } from '../../composables/api/useSettingsApi'
-import type { SettingsPayload, TimeZoneOption } from '../../types/app'
 import { getErrorMessage } from '../../utils/errors'
 
 const props = defineProps<{

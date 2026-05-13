@@ -1,10 +1,7 @@
+import type { ErrorContext } from '#interfaces/errors/error-context.js'
 import { AppError } from './app-error.js'
 
-export type ErrorContext = {
-  scope: string;
-  action?: string;
-  metadata?: Record<string, unknown>;
-};
+// todo: bot error
 
 export function normalizeError(error: unknown): AppError {
   if (error instanceof AppError) {

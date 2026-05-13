@@ -1,11 +1,11 @@
-import type { TrelloPayload } from '../../types/app'
 import { useApi } from './useApi'
+import type { TrelloConnection } from '#interfaces/trello/auth/connections-repository'
 
 export function useTrelloApi() {
   const { get, post } = useApi()
 
   const fetchStatus = async () => {
-    return get<{ trello: TrelloPayload }>('/api/app/trello/status')
+    return get<{ trello: TrelloConnection }>('/api/app/trello/status')
   }
 
   const createConnectLink = async () => {
@@ -13,7 +13,7 @@ export function useTrelloApi() {
   }
 
   const disconnect = async () => {
-    return post<{ trello: TrelloPayload }>('/api/app/trello/disconnect')
+    return post<{ trello: TrelloConnection }>('/api/app/trello/disconnect')
   }
 
   return {

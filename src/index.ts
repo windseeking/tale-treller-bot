@@ -1,18 +1,17 @@
-import { TrelloAuthService } from './auth/trello-auth-service.js'
-import { createTelegramBot } from './bot/telegram-bot.js'
 import { env } from './config/env.js'
-import { DbClient } from './db/client.js'
-import { runMigrations } from './db/migrations.js'
-import { TrelloAuthSessionsRepository } from './db/repositories/trello-auth-sessions-repository.js'
-import { TrelloConnectionsRepository } from './db/repositories/trello-connections-repository.js'
-import { TelegramUsersRepository } from './db/repositories/telegram-users-repository.js'
-import { UserSettingsRepository } from './db/repositories/user-settings-repository.js'
+import { createBotServices } from './config/bot-services.js'
+import { createTrelloAuthServices } from './config/trello-auth-services.js'
 import { normalizeError, toLogPayload } from './errors/error-handler.js'
-import { createHttpServer } from './http/server.js'
-import { LlmClient } from './llm/llm-client.js'
-import { logger } from './logger/logger.js'
-import { SettingsService } from './settings/settings-service.js'
-import { TrelloClient } from './trello/trello-client.js'
+import { createTelegramBot } from '@bot/telegram-bot.js'
+import { TelegramBotNotifier } from '@bot/telegram-notifier.js'
+import { DbClient } from './infrastructure/data-access/postgres/client.js'
+import { runMigrations } from './infrastructure/data-access/postgres/migrations.js'
+import { TrelloAuthSessionsRepository } from './infrastructure/data-access/postgres/repositories/trello-auth-sessions-repository.js'
+import { TrelloConnectionsRepository } from './infrastructure/data-access/postgres/repositories/trello-connections-repository.js'
+import { TelegramUsersRepository } from './infrastructure/data-access/postgres/repositories/telegram-users-repository.js'
+import { UserSettingsRepository } from './infrastructure/data-access/postgres/repositories/user-settings-repository.js'
+import { createHttpServer } from './infrastructure/http/express-server.js'
+import { logger } from './infrastructure/logger/logger.js'
 
 let shuttingDown = false
 let stopBot: (() => Promise<void>) | null = null
@@ -27,35 +26,34 @@ async function bootstrap(): Promise<void> {
 
   await runMigrations(db)
 
-  const trelloClient = new TrelloClient()
-  const llmClient = new LlmClient()
-
   const telegramUsersRepository = new TelegramUsersRepository(db)
   const trelloConnectionsRepository = new TrelloConnectionsRepository(db)
   const trelloAuthSessionsRepository = new TrelloAuthSessionsRepository(db)
   const userSettingsRepository = new UserSettingsRepository(db)
-  const settingsService = new SettingsService(userSettingsRepository)
+  const telegramNotifier = new TelegramBotNotifier()
 
-  const trelloAuthService = new TrelloAuthService(
-    telegramUsersRepository,
+  const trelloAuthServices = createTrelloAuthServices({
+    tgUsersRepository: telegramUsersRepository,
     trelloConnectionsRepository,
     trelloAuthSessionsRepository,
-    userSettingsRepository
-  )
+    userSettingsRepository,
+    tgNotifier: telegramNotifier
+  })
 
-  const httpServer = createHttpServer(trelloAuthService, settingsService, telegramUsersRepository)
+  const httpServer = createHttpServer(trelloAuthServices, telegramUsersRepository, userSettingsRepository)
   await httpServer.start()
   stopHttp = async () => {
     await httpServer.stop()
   }
 
+  const botServices = createBotServices({
+    telegramUsersRepository,
+    userSettingsRepository,
+    trelloAuthServices
+  })
   const bot = createTelegramBot({
     telegramToken: env.TELEGRAM_BOT_TOKEN,
-    trelloClient,
-    llmClient,
-    trelloAuthService,
-    telegramUsersRepository,
-    userSettingsRepository
+    ...botServices
   })
 
   logger.info(

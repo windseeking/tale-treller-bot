@@ -4,16 +4,16 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 
 import { useTrelloApi } from '../../composables/api/useTrelloApi'
-import type { TrelloPayload } from '../../types/app'
 import { formatDateTime } from '../../utils/date'
 import { getErrorMessage } from '../../utils/errors'
+import type { TrelloConnection } from '#interfaces/trello/auth/connections-repository'
 
 const props = defineProps<{
-  trello: TrelloPayload;
+  trello: TrelloConnection;
 }>()
 
 const emit = defineEmits<{
-  'update:trello': [value: TrelloPayload];
+  'update:trello': [value: TrelloConnection];
 }>()
 
 const toast = useToast()

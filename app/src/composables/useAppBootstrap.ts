@@ -1,9 +1,11 @@
 import { ref } from 'vue'
 
-import type { SettingsPayload, TimeZoneOption, TrelloPayload } from '../types/app'
+import type { SettingsPayload } from '#interfaces/settings/settings-payload'
+import type { TimeZoneOption } from '#interfaces/settings/time-zone-option'
 import { useAppApi } from './api/useAppApi'
 import { useTelegramApp } from './useTelegramApp'
 import { getErrorMessage } from '../utils/errors'
+import type { TrelloConnection } from '#interfaces/trello/auth/connections-repository'
 
 function createDefaultSettings(): SettingsPayload {
   return {
@@ -13,7 +15,7 @@ function createDefaultSettings(): SettingsPayload {
   }
 }
 
-function createDefaultTrello(): TrelloPayload {
+function createDefaultTrello(): TrelloConnection {
   return {
     connected: false,
     username: null,
@@ -27,7 +29,7 @@ export function useAppBootstrap() {
   const { fetchMe, fetchTimeZones } = useAppApi()
 
   const settings = ref<SettingsPayload>(createDefaultSettings())
-  const trello = ref<TrelloPayload>(createDefaultTrello())
+  const trello = ref<TrelloConnection>(createDefaultTrello())
   const timeZones = ref<TimeZoneOption[]>([])
   const fatalMessage = ref('')
   const isLoading = ref(true)
