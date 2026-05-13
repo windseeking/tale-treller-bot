@@ -6,7 +6,17 @@
   "description": "Telegram bot for creating Trello cards from user messages",
   "main": "dist/index.js",
   "imports": {
-    "#validators/*": "./dist/infrastructure/validation/zod/*"
+    "#config/*": "./dist/config/*",
+    "#controllers/*": "./dist/controllers/*",
+    "#errors/*": "./dist/errors/*",
+    "#interfaces/*": "./dist/interfaces/*",
+    "#usecases/*": "./dist/use-cases/*",
+    "#utils/*": "./dist/infrastructure/utils/*",
+    "#validators/*": "./dist/infrastructure/validation/zod/*",
+    "#bot/*": "./dist/infrastructure/bot/*",
+    "#llm/*": "./dist/infrastructure/llm/*",
+    "#trello/*": "./dist/infrastructure/trello/*",
+    "#presenters/*": "./dist/presenters/*"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",

@@ -1,7 +1,7 @@
 import type { BotRequest, SessionStorePort, TaskDestinationRegistry } from '#interfaces/bot.js'
 import type { TelegramUsersRepositoryPort } from '#interfaces/telegram-user/telegram-users-repository.js'
 import { ValidateDraft } from '#usecases/task/validate-draft.js'
-import { resolveBotAction } from '@bot/actions.js'
+import { resolveBotAction } from '#bot/actions.js'
 import { BOT_MESSAGES } from '../../presenters/bot/messages.js'
 
 export class BotTextController {

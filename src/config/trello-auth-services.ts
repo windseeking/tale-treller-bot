@@ -5,14 +5,14 @@ import type { TelegramUsersRepositoryPort } from '#interfaces/telegram-user/tele
 import type { TrelloAuthContextProvider } from '#interfaces/trello/auth/trello-auth-context.js'
 import type { AuthSessionsRepository } from '#interfaces/trello/auth/auth-sessions-repository.js'
 import type { ConnectionsRepository } from '#interfaces/trello/auth/connections-repository.js'
-import { RepositoryTrelloAuthContextProvider } from '@trello/auth/repository-trello-auth-context-provider.js'
+import { RepositoryTrelloAuthContextProvider } from '#trello/auth/repository-trello-auth-context-provider.js'
 import { IntlTimeZoneValidator } from '../infrastructure/settings/time-zone-validator.js'
 import { CryptoTrelloAuthSecrets } from '../infrastructure/security/trello-auth-secrets.js'
 import { SystemClock } from '../infrastructure/time/system-clock.js'
 import {
   TrelloMemberHttpGateway,
   TrelloOAuthHttpGateway
-} from '@trello/auth/trello-oauth-gateway.js'
+} from '#trello/auth/trello-oauth-gateway.js'
 import { ConnectTrelloAccount } from '../use-cases/trello/auth/connect-trello-account.js'
 import { DisconnectTrelloAccount } from '../use-cases/trello/auth/disconnect-trello-account.js'
 import { GetTrelloConnectionStatus } from '../use-cases/trello/auth/get-trello-connection-status.js'

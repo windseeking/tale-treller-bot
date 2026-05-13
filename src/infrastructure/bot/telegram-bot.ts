@@ -7,7 +7,7 @@ import { BotTextController } from '#controllers/bot/text-controller.js'
 import { normalizeError } from '#errors/error-handler.js'
 import { formatBotError } from '../../presenters/bot/errors.js'
 import { logger } from '../logger/logger.js'
-import { BOT_MESSAGES } from '@presenters/bot/messages.js'
+import { BOT_MESSAGES } from '#presenters/bot/messages.js'
 import { TelegrafBotMessenger } from './telegram-messenger.js'
 
 type Dependencies = {
