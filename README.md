@@ -1,8 +1,12 @@
+<img height="70" src="https://raw.githubusercontent.com/windseeking/tale-treller-bot/refs/heads/master/taletreller.png" title="Tale Treller Bot Logo" width="70"/>
+
 # Tale Treller Bot
+
+[@taletrellerbot](https://t.me/taletrellerbot)
 
 Telegram bot that collects user messages and creates Trello cards in the user's own Trello account.
 
-[@taletrellerbot](https://t.me/taletrellerbot)
+**Stack**: Vue 3, TypeScript, Express, PrimeVue, Tailwind.
 
 ## Requirements
 
