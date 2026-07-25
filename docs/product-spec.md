@@ -46,9 +46,9 @@ Telegram bot that collects a user's text messages and creates Trello cards in th
 - If no valid timezone is saved, `APP_TIMEZONE` is used as the safe default timezone.
 
 ## Telegram App Policy
-- The settings App is served from `/app`.
+- The settings App has a stable Telegram Mini App URL. The default app path is `/app`; production may expose the built App from a dedicated App subdomain root.
 - App API endpoints use `/api/app/*`.
-- The App is opened from the standard Telegram Menu Button at the stable `/app` URL.
+- The App is opened from the standard Telegram Menu Button at the configured stable Mini App URL.
 - App API endpoints validate Telegram Mini App `initData` from the `X-Telegram-Init-Data` request header.
 - App launch does not use one-time `sid`/`secret` sessions.
 - The App can show Trello connection status, create a Trello connect link, and disconnect Trello.

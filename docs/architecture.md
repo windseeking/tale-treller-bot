@@ -18,6 +18,8 @@ Single Node.js process runs:
 
 In `NODE_ENV=development`, the HTTP server serves the Telegram App through Vite middleware at the same `/app` path, so Telegram can open `APP_BASE_URL/app` with hot frontend updates. In non-development modes, `/app` serves the built static files from `dist/public/app`.
 
+The current production server exposes the built Telegram App through nginx at `https://app.taletreller.online/`, with static files copied from `dist/public/app` to `/var/www/app.taletreller.online`. The App API remains served by the Node process and is proxied from `https://app.taletreller.online/api/app/*` to `http://127.0.0.1:3000/api/app/*`. Server operations are documented in `docs/server-infrastructure.md`.
+
 ## Module Layout
 
 ### `src/index.ts`

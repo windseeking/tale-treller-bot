@@ -1,6 +1,8 @@
-# tg-trello-bot
+# Tale Treller Bot
 
 Telegram bot that collects user messages and creates Trello cards in the user's own Trello account.
+
+[@taletrellerbot](https://t.me/taletrellerbot)
 
 ## Requirements
 
@@ -125,6 +127,12 @@ Recreate Docker Compose containers:
 docker compose down
 docker compose up -d --build
 ```
+
+## Production Infrastructure
+
+Production server, nginx, PM2, Certbot, domains, and deployment commands are documented in:
+
+- [docs/server-infrastructure.md](docs/server-infrastructure.md)
 
 ## Runtime Notes
 

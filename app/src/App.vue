@@ -23,7 +23,7 @@ onMounted(load)
           Настройки
         </h1>
       </hgroup>
-      <div class="shrink-0">
+      <div v-if="!fatalMessage && !isLoading" class="shrink-0">
         <Badge :severity="trello.connected ? 'success' : 'warn'">
           {{ trello.connected ? 'Trello подключен' : 'Trello не подключен' }}
         </Badge>

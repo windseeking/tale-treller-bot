@@ -166,3 +166,10 @@
 **Decision:** Model Trello authorization use cases around product scenarios: initiate Trello connection, connect Trello account, disconnect Trello account, and get Trello connection status. Keep OAuth redirect mechanics, active auth-context lookup, facade composition, result DTOs, and presentation messages outside `src/use-cases/*`.
 
 **Reason:** Clean Architecture use cases should describe business actions, not provider protocol steps, credential lookups, or delivery text mapping. Technical Trello auth support lives in `src/application/trello/auth/*`, result contracts live in `src/interfaces/trello/auth/*`, and Russian auth messages/status mapping lives in controllers/presentation while preserving the approved Trello authorization flows.
+
+---
+
+## D-025: Production Mini App Static Subdomain
+**Decision:** In production, expose the Telegram Mini App at `https://app.taletreller.online/` through nginx static hosting. Keep the Node application on `https://bot.taletreller.online` for Trello OAuth and bot-related HTTP endpoints, and proxy `https://app.taletreller.online/api/app/*` to the local Node process.
+
+**Reason:** A dedicated App subdomain gives BotFather a clean Mini App URL while allowing nginx to serve built Vue assets directly from `/var/www/app.taletreller.online`. The Node process stays responsible for authenticated API behavior, Telegram polling, Trello OAuth, and database access.

@@ -69,7 +69,7 @@
 
 ### 3.1 Open App
 1. User opens the standard Telegram Menu Button.
-2. Telegram opens the stable `/app` Mini App URL.
+2. Telegram opens the configured stable Mini App URL.
 3. App reads `window.Telegram.WebApp.initData`.
 4. App sends `initData` in `X-Telegram-Init-Data` for protected `/api/app/*` requests.
 5. Backend validates Telegram `initData`, resolves the Telegram user, and returns current settings plus Trello status.
